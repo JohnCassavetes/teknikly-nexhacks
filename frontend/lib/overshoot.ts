@@ -44,19 +44,22 @@ class OverShootAnalyzer {
 
   async initialize(videoElement: HTMLVideoElement): Promise<void> {
     this.videoElement = videoElement;
+    console.log('🎬 OverShoot: Video element stored:', !!this.videoElement);
     
     // Try to get API key
     try {
+      console.log('🔑 OverShoot: Fetching API key from /api/overshoot-key...');
       const response = await fetch('/api/overshoot-key');
+      console.log('🔑 OverShoot: API response status:', response.status);
       if (response.ok) {
         const data = await response.json();
         this.apiKey = data.apiKey;
-        console.log('✅ OverShoot API key loaded');
+        console.log('✅ OverShoot API key loaded:', this.apiKey?.substring(0, 10) + '...');
       } else {
-        console.warn('⚠️ OverShoot API key not configured');
+        console.warn('⚠️ OverShoot API key not configured, status:', response.status);
       }
     } catch (error) {
-      console.warn('❌ Failed to get OverShoot API key, using fallback');
+      console.warn('❌ Failed to get OverShoot API key, using fallback:', error);
     }
 
     // Setup fallback canvas
@@ -64,6 +67,7 @@ class OverShootAnalyzer {
     this.canvas.width = 320;
     this.canvas.height = 240;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    console.log('🖼️ OverShoot: Fallback canvas ready');
   }
 
   async start(callbacks: OverShootCallbacks): Promise<void> {
@@ -107,11 +111,10 @@ class OverShootAnalyzer {
       properties: {
         eye_contact: { type: 'boolean' },
         eye_contact_confidence: { type: 'number' },
-        posture: { type: 'string', enum: ['good', 'slouching', 'leaning', 'neutral'] },
-        motion_level: { type: 'string', enum: ['still', 'low', 'moderate', 'high', 'excessive'] },
+        posture: { type: 'string' },
+        motion_level: { type: 'string' },
         gesture_detected: { type: 'boolean' },
       },
-      required: ['eye_contact', 'eye_contact_confidence', 'posture', 'motion_level', 'gesture_detected'],
     };
 
     console.log('🔧 Creating RealtimeVision instance...');
@@ -120,11 +123,11 @@ class OverShootAnalyzer {
       apiKey: this.apiKey!,
       prompt,
       outputSchema,
+      model: 'Qwen/Qwen3-VL-8B-Instruct',  // Use smaller/faster model
       source: { type: 'camera', cameraFacing: 'user' },
       debug: true,  // Enable SDK debug logging
       processing: {
-        fps: 10,
-        sampling_ratio: 0.2,
+        sampling_ratio: 0.1,  // Use default 10% sampling
         clip_length_seconds: 1.0,
         delay_seconds: 1.0,
       },

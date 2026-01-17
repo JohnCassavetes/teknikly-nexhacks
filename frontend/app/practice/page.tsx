@@ -174,10 +174,14 @@ function PracticeContent() {
     // Initialize OverShoot (body language)
     overshootRef.current = createOverShootAnalyzer();
     const video = document.querySelector('video');
+    console.log('🎥 Looking for video element:', video ? 'FOUND' : 'NOT FOUND');
     if (video) {
+      console.log('🔧 Initializing OverShoot with video element...');
       overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
+        console.log('✅ OverShoot initialized, starting analysis...');
         overshootRef.current?.start({
           onSignals: (signals) => {
+            console.log('📊 OverShoot signals received:', signals);
             setMetrics((prev) => ({
               ...prev,
               eye_contact_pct: signals.eye_contact_pct,
@@ -185,7 +189,11 @@ function PracticeContent() {
             }));
           },
         });
+      }).catch((err) => {
+        console.error('❌ OverShoot initialization failed:', err);
       });
+    } else {
+      console.warn('⚠️ No video element found - OverShoot body language analysis disabled');
     }
 
     // Start periodic coaching tips - more frequently for better feedback
