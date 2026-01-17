@@ -21,6 +21,7 @@ function PracticeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const mode = (searchParams.get('mode') as Mode) || 'presentation';
+  const type = searchParams.get('type') || '';
 
   // Session state
   const [isActive, setIsActive] = useState(false);
@@ -46,6 +47,10 @@ function PracticeContent() {
   const coachTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string>(generateSessionId());
 
+
+  // Show coding section for programming interviews
+  const [showCodingSection, setShowCodingSection] = useState(false);
+
   // Initialize camera on mount
   useEffect(() => {
     if (skipCamera) {
@@ -69,6 +74,12 @@ function PracticeContent() {
       }
     };
   }, [skipCamera]);
+
+  // useEffect(() => {
+  //   if (mode === 'interview' && type === 'programming') {
+  //     setShowCodingSection(true);
+  //   }
+  // }, [isActive])
 
   // Timer for elapsed time
   useEffect(() => {
@@ -139,6 +150,8 @@ function PracticeContent() {
   // Start session
   const startSession = useCallback(() => {
     if (!stream && !skipCamera) return;
+
+    if (mode === 'interview' && type === 'programming') setShowCodingSection(true);
 
     setIsActive(true);
     setStartTime(Date.now());
@@ -303,7 +316,7 @@ function PracticeContent() {
       </Navbar>
 
       {/* For programming interviews */}
-      <CodingQuestion/>
+      {showCodingSection && <CodingQuestion/>}
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
