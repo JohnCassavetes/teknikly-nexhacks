@@ -72,7 +72,7 @@ export default function Home() {
           disabled={!selectedMode}
           className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
             selectedMode
-              ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
+              ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'
               : 'bg-gray-800 text-gray-500 cursor-not-allowed'
           }`}
         >
