@@ -20,6 +20,7 @@ function PracticeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const mode = (searchParams.get('mode') as Mode) || 'presentation';
+  const type = searchParams.get('type') || undefined; // Sub-category like 'comedy', 'pitch', etc.
 
   // Session state
   const [isActive, setIsActive] = useState(false);
@@ -108,31 +109,37 @@ function PracticeContent() {
       .map((s) => s.text)
       .join(' ');
 
+    const requestBody = {
+      mode,
+      type,
+      recent_transcript: recentTranscript,
+      metrics: {
+        pace_wpm: metrics.pace_wpm,
+        filler_rate_per_min: metrics.filler_rate_per_min,
+        eye_contact_pct: metrics.eye_contact_pct,
+        max_pause_ms: metrics.max_pause_ms,
+        motion_energy: metrics.motion_energy,
+      },
+    };
+
+    console.log('🎯 COACH API Request:', requestBody);
+
     try {
       const response = await fetch('/api/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode,
-          recent_transcript: recentTranscript,
-          metrics: {
-            pace_wpm: metrics.pace_wpm,
-            filler_rate_per_min: metrics.filler_rate_per_min,
-            eye_contact_pct: metrics.eye_contact_pct,
-            max_pause_ms: metrics.max_pause_ms,
-            motion_energy: metrics.motion_energy,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🎯 COACH API Response:', data);
         setCoachTip(data);
       }
     } catch (error) {
       console.error('Failed to fetch coach tip:', error);
     }
-  }, [isActive, transcript, metrics, mode]);
+  }, [isActive, transcript, metrics, mode, type]);
 
   // Start session
   const startSession = useCallback(() => {
@@ -197,9 +204,9 @@ function PracticeContent() {
     }
 
     // Start periodic coaching tips - more frequently for better feedback
-    coachTimerRef.current = setInterval(fetchCoachTip, 8000);  // Every 8 seconds
-    // Fetch first tip after 5 seconds
-    setTimeout(fetchCoachTip, 5000);
+    coachTimerRef.current = setInterval(fetchCoachTip, 5000);  // Every 5 seconds
+    // Fetch first tip after 3 seconds
+    setTimeout(fetchCoachTip, 3000);
   }, [stream, skipCamera, fetchCoachTip]);
 
   // End session
@@ -227,6 +234,7 @@ function PracticeContent() {
     const session = {
       id: sessionIdRef.current,
       mode,
+      type,
       startTime: startTime || Date.now(),
       endTime: Date.now(),
       duration: elapsedTime,
@@ -240,7 +248,7 @@ function PracticeContent() {
 
     // Navigate to report page
     router.push(`/report?id=${sessionIdRef.current}`);
-  }, [transcript, mode, startTime, elapsedTime, score, metrics, router]);
+  }, [transcript, mode, type, startTime, elapsedTime, score, metrics, router]);
 
   // Format time display
   const formatTime = (seconds: number) => {

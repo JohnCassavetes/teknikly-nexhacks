@@ -37,6 +37,7 @@ export interface SessionReport {
 export interface Session {
   id: string;
   mode: Mode;
+  type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   startTime: number;
   endTime: number;
   duration: number;

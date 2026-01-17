@@ -42,21 +42,27 @@ function ReportContent() {
   }, [sessionId, router]);
 
   const generateReport = async (sessionData: Session) => {
+    const requestBody = {
+      mode: sessionData.mode,
+      type: sessionData.type,
+      duration_seconds: sessionData.duration,
+      transcript: sessionData.transcript,
+      metrics: sessionData.metrics,
+      final_score: sessionData.finalScore,
+    };
+
+    console.log('📝 REPORT API Request:', requestBody);
+
     try {
       const response = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: sessionData.mode,
-          duration_seconds: sessionData.duration,
-          transcript: sessionData.transcript,
-          metrics: sessionData.metrics,
-          final_score: sessionData.finalScore,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const reportData = await response.json();
+        console.log('📝 REPORT API Response:', reportData);
         setReport(reportData);
 
         // Save report to session

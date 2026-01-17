@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 interface ReportRequest {
   mode: 'interview' | 'presentation';
+  type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   duration_seconds: number;
   transcript: string;
   metrics: {
@@ -16,7 +17,7 @@ interface ReportRequest {
   final_score: number;
 }
 
-const SYSTEM_PROMPT = `You are an expert public speaking coach providing a post-session feedback report.
+const BASE_SYSTEM_PROMPT = `You are an expert public speaking coach providing a post-session feedback report.
 
 Analyze the practice session and provide constructive, actionable feedback.
 
@@ -28,10 +29,61 @@ Respond with JSON only:
   "next_goal": "One specific, measurable goal for the next session"
 }`;
 
+// Sub-category specific prompt additions
+const TYPE_PROMPTS: Record<string, string> = {
+  // Presentation sub-categories
+  comedy: `You are providing feedback as an experienced stand-up comedy coach.
+Focus on comedic timing, delivery rhythm, and stage presence.
+For comedians, strategic pauses are good for laugh timing, expressive energy is valued, and confident delivery is key.
+Frame feedback in terms of comedic performance - "punchline delivery", "setup pacing", "audience connection".
+Filler words can kill comedic timing. Suggest how to use pauses effectively for laughs.`,
+
+  pitch: `You are providing feedback as an expert sales and pitch coach.
+Focus on persuasion techniques, confidence projection, and clarity of value proposition.
+Emphasize how delivery affects credibility and trust-building with investors or clients.
+Frame feedback in terms of sales effectiveness - "conviction", "closing strength", "audience engagement".
+A steady, confident pace builds trust, while strong eye contact establishes credibility.`,
+
+  business: `You are providing feedback as a professional business communication coach.
+Focus on executive presence, clarity, and authority.
+Emphasize professional delivery, clear articulation, and confident body language.
+Frame feedback in terms of business effectiveness - "stakeholder engagement", "professional presence", "message clarity".`,
+
+  school: `You are providing feedback as a supportive educational coach for students.
+Be encouraging and constructive - this may be a young learner building confidence.
+Focus on clear communication, maintaining good pace, and building presentation confidence.
+Frame feedback in supportive terms - "great effort", "room to grow", "keep practicing".`,
+
+  // Interview sub-categories
+  technical: `You are providing feedback as a technical interview coach.
+Focus on clarity of technical explanations, structured communication, and confident delivery.
+In coding interviews, thinking out loud clearly is essential. Brief pauses to think are acceptable.
+Frame feedback in terms of interview success - "technical clarity", "problem-solving communication", "confidence under pressure".`,
+
+  behavioral: `You are providing feedback as a behavioral interview coach.
+Focus on storytelling ability, authenticity, and demonstrating cultural fit.
+Emphasize the STAR method effectiveness, genuine responses, and connecting with interviewers.
+Frame feedback in terms of interview success - "story structure", "authenticity", "rapport building".`,
+
+  'case': `You are providing feedback as a technical interview coach.
+Focus on logical flow of explanations, confident problem-solving delivery, and structured thinking.
+Emphasize how well they articulated their thought process.
+Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".`,
+};
+
+function getSystemPrompt(type?: string): string {
+  if (type && TYPE_PROMPTS[type]) {
+    return `${TYPE_PROMPTS[type]}
+
+${BASE_SYSTEM_PROMPT}`;
+  }
+  return BASE_SYSTEM_PROMPT;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ReportRequest = await request.json();
-    const { mode, duration_seconds, transcript, metrics, final_score } = body;
+    const { mode, type, duration_seconds, transcript, metrics, final_score } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -41,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const minutes = Math.round(duration_seconds / 60);
-    const userPrompt = `Mode: ${mode}
+    const userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}
 Duration: ${minutes} minute(s)
 Final Score: ${final_score}/100
 
@@ -58,6 +110,16 @@ Transcript:
 
 Provide a detailed feedback report.`;
 
+    const systemPrompt = getSystemPrompt(type);
+
+    // Log the prompts being sent to the AI
+    console.log('=== REPORT API - Prompt Details ===');
+    console.log('Mode:', mode);
+    console.log('Type (sub-category):', type || 'none');
+    console.log('System Prompt:', systemPrompt);
+    console.log('User Prompt:', userPrompt);
+    console.log('===================================');
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -69,7 +131,7 @@ Provide a detailed feedback report.`;
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 500,
