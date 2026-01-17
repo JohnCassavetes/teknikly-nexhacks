@@ -32,7 +32,7 @@ function PracticeContent() {
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [skipCamera, setSkipCamera] = useState(true); // Camera off by default
+  const [skipCamera, setSkipCamera] = useState(false); // Enable camera for real analysis
   const [cameraRequested, setCameraRequested] = useState(false);
 
   // Analysis state
