@@ -20,6 +20,20 @@ export interface TranscriptSegment {
   text: string;
   timestamp: number;
   isFinal: boolean;
+  // Paralinguistic features
+  confidence?: number; // 0-1 confidence score from speech recognition
+  pauseBefore?: number; // Milliseconds of pause before this segment
+  fillers?: string[]; // Detected filler words in this segment
+  speakingRate?: 'slow' | 'normal' | 'fast'; // Relative speaking pace
+  isHesitation?: boolean; // Detected hesitation/uncertainty
+  // Tone/prosody features (from audio analysis)
+  tone?: ToneInfo;
+}
+
+export interface ToneInfo {
+  volume: 'quiet' | 'normal' | 'loud'; // Speaking volume
+  energy: 'low' | 'medium' | 'high'; // Voice energy/intensity
+  pitchTrend?: 'falling' | 'flat' | 'rising'; // Intonation pattern
 }
 
 export interface CoachTip {
@@ -44,6 +58,7 @@ export interface Session {
   finalScore: number;
   metrics: Metrics;
   transcript: string;
+  enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
   report: SessionReport | null;
 }
 

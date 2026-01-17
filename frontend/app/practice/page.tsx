@@ -9,10 +9,11 @@ import CueBadges from '@/components/CueBadges';
 import LiveTranscript from '@/components/LiveTranscript';
 import MetricsDisplay from '@/components/MetricsDisplay';
 import CoachTip from '@/components/CoachTip';
-import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType } from '@/lib/types';
+import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo } from '@/lib/types';
 import { captureLocalMedia, stopMediaStream } from '@/lib/livekit';
 import { createWisprFlow } from '@/lib/wispr';
 import { createOverShootAnalyzer } from '@/lib/overshoot';
+import { createToneAnalyzer } from '@/lib/toneAnalyzer';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
 
@@ -41,6 +42,8 @@ function PracticeContent() {
   // Refs for cleanup
   const wisprRef = useRef<ReturnType<typeof createWisprFlow> | null>(null);
   const overshootRef = useRef<ReturnType<typeof createOverShootAnalyzer> | null>(null);
+  const toneAnalyzerRef = useRef<ReturnType<typeof createToneAnalyzer> | null>(null);
+  const currentToneRef = useRef<ToneInfo>({ volume: 'normal', energy: 'medium', pitchTrend: 'flat' });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const coachTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string>(generateSessionId());
@@ -153,18 +156,38 @@ function PracticeContent() {
     setCoachTip(null);
     sessionIdRef.current = generateSessionId();
 
+    // Initialize Tone Analyzer (audio prosody analysis)
+    if (stream) {
+      toneAnalyzerRef.current = createToneAnalyzer();
+      toneAnalyzerRef.current.initialize(stream).then(() => {
+        console.log('🎵 Tone analyzer initialized');
+        toneAnalyzerRef.current?.start({
+          onToneUpdate: (tone) => {
+            currentToneRef.current = tone;
+            console.log('🎵 Tone update:', tone);
+          },
+        });
+      });
+    }
+
     // Initialize Wispr (speech recognition)
     wisprRef.current = createWisprFlow();
     wisprRef.current.start({
       onTranscript: (segment) => {
+        // Attach current tone to the segment
+        const segmentWithTone = {
+          ...segment,
+          tone: { ...currentToneRef.current },
+        };
+        
         setTranscript((prev) => {
           // Replace pending segments, add final ones
-          if (segment.isFinal) {
+          if (segmentWithTone.isFinal) {
             const filtered = prev.filter((s) => s.isFinal);
-            return [...filtered, segment];
+            return [...filtered, segmentWithTone];
           }
           const finals = prev.filter((s) => s.isFinal);
-          return [...finals, segment];
+          return [...finals, segmentWithTone];
         });
       },
       onMetricsUpdate: (speechMetrics) => {
@@ -220,6 +243,9 @@ function PracticeContent() {
     if (overshootRef.current) {
       overshootRef.current.stop();
     }
+    if (toneAnalyzerRef.current) {
+      toneAnalyzerRef.current.stop();
+    }
     if (coachTimerRef.current) {
       clearInterval(coachTimerRef.current);
     }
@@ -229,6 +255,9 @@ function PracticeContent() {
       .filter((s) => s.isFinal)
       .map((s) => s.text)
       .join(' ');
+
+    // Get enriched transcript with paralinguistic data
+    const enrichedTranscript = transcript.filter((s) => s.isFinal);
 
     // Save session to localStorage
     const session = {
@@ -241,6 +270,7 @@ function PracticeContent() {
       finalScore: score,
       metrics,
       transcript: fullTranscript,
+      enrichedTranscript,
       report: null,
     };
 
