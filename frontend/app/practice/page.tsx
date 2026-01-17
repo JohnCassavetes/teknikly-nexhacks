@@ -15,6 +15,7 @@ import { createWisprFlow } from '@/lib/wispr';
 import { createOverShootAnalyzer } from '@/lib/overshoot';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
+import CodingQuestion from '@/components/CodingQuestion';
 
 function PracticeContent() {
   const searchParams = useSearchParams();
@@ -300,6 +301,9 @@ function PracticeContent() {
           </button>
         )}
       </Navbar>
+
+      {/* For programming interviews */}
+      <CodingQuestion/>
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -11,7 +11,6 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <div className="flex items-center gap-4">
           <a href="/" className="flex items-center gap-3">
-            <span className="text-3xl">🎯</span>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               TalkCoach
             </h1>
