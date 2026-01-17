@@ -29,12 +29,12 @@ function PracticeContent() {
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [skipCamera, setSkipCamera] = useState(true); // Skip camera requirement
+  const [skipCamera, setSkipCamera] = useState(false); // Enable camera for real analysis
 
   // Analysis state
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
   const [metrics, setMetrics] = useState<Metrics>(getInitialMetrics());
-  const [score, setScore] = useState(75);
+  const [score, setScore] = useState(50);  // Start neutral, score will update based on performance
   const [coachTip, setCoachTip] = useState<CoachTipType | null>(null);
 
   // Refs for cleanup
@@ -142,7 +142,7 @@ function PracticeContent() {
     setStartTime(Date.now());
     setTranscript([]);
     setMetrics(getInitialMetrics());
-    setScore(75);
+    setScore(50);  // Start neutral
     setCoachTip(null);
     sessionIdRef.current = generateSessionId();
 
@@ -175,22 +175,23 @@ function PracticeContent() {
     overshootRef.current = createOverShootAnalyzer();
     const video = document.querySelector('video');
     if (video) {
-      overshootRef.current.initialize(video as HTMLVideoElement);
-      overshootRef.current.start({
-        onSignals: (signals) => {
-          setMetrics((prev) => ({
-            ...prev,
-            eye_contact_pct: signals.eye_contact_pct,
-            motion_energy: signals.motion_energy,
-          }));
-        },
+      overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
+        overshootRef.current?.start({
+          onSignals: (signals) => {
+            setMetrics((prev) => ({
+              ...prev,
+              eye_contact_pct: signals.eye_contact_pct,
+              motion_energy: signals.motion_energy,
+            }));
+          },
+        });
       });
     }
 
-    // Start periodic coaching tips
-    coachTimerRef.current = setInterval(fetchCoachTip, 15000);
-    // Fetch first tip after 10 seconds
-    setTimeout(fetchCoachTip, 10000);
+    // Start periodic coaching tips - more frequently for better feedback
+    coachTimerRef.current = setInterval(fetchCoachTip, 8000);  // Every 8 seconds
+    // Fetch first tip after 5 seconds
+    setTimeout(fetchCoachTip, 5000);
   }, [stream, skipCamera, fetchCoachTip]);
 
   // End session

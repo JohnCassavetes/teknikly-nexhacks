@@ -1,5 +1,5 @@
-// OverShoot wrapper for body language analysis
-// With webcam-based fallback for MVP
+// OverShoot SDK integration for real-time body language analysis
+// Uses the OverShoot RealtimeVision API for AI-powered analysis
 
 import { BodySignals } from './types';
 
@@ -7,47 +7,219 @@ interface OverShootCallbacks {
   onSignals: (signals: BodySignals) => void;
 }
 
+// OverShoot result schema for body language analysis
+interface BodyLanguageResult {
+  eye_contact: boolean;
+  eye_contact_confidence: number;
+  posture: 'good' | 'slouching' | 'leaning' | 'neutral';
+  motion_level: 'still' | 'low' | 'moderate' | 'high' | 'excessive';
+  gesture_detected: boolean;
+}
+
 class OverShootAnalyzer {
-  private videoElement: HTMLVideoElement | null = null;
-  private canvas: HTMLCanvasElement | null = null;
-  private ctx: CanvasRenderingContext2D | null = null;
+  private vision: any = null;
   private callbacks: OverShootCallbacks | null = null;
   private isRunning = false;
-  private animationFrame: number | null = null;
+  private videoElement: HTMLVideoElement | null = null;
+  private apiKey: string | null = null;
 
-  // Motion detection
-  private lastFrame: ImageData | null = null;
-  private motionHistory: number[] = [];
-  private readonly MOTION_HISTORY_SIZE = 30;
-
-  // Eye contact proxy (face detection simulation)
-  // In a real implementation, this would use face-api.js or similar
+  // Rolling averages for smoothing
   private eyeContactHistory: number[] = [];
-  private readonly EYE_CONTACT_HISTORY_SIZE = 30;
+  private motionHistory: number[] = [];
+  private readonly HISTORY_SIZE = 10;
 
-  initialize(videoElement: HTMLVideoElement): void {
+  // Fallback detection (used when API unavailable)
+  private canvas: HTMLCanvasElement | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private lastFrame: ImageData | null = null;
+  private useFallback = false;
+
+  // Public status for debugging
+  public getStatus(): { usingAPI: boolean; apiKey: boolean } {
+    return {
+      usingAPI: !this.useFallback && this.vision !== null,
+      apiKey: this.apiKey !== null,
+    };
+  }
+
+  async initialize(videoElement: HTMLVideoElement): Promise<void> {
     this.videoElement = videoElement;
+    
+    // Try to get API key
+    try {
+      const response = await fetch('/api/overshoot-key');
+      if (response.ok) {
+        const data = await response.json();
+        this.apiKey = data.apiKey;
+        console.log('✅ OverShoot API key loaded');
+      } else {
+        console.warn('⚠️ OverShoot API key not configured');
+      }
+    } catch (error) {
+      console.warn('❌ Failed to get OverShoot API key, using fallback');
+    }
+
+    // Setup fallback canvas
     this.canvas = document.createElement('canvas');
     this.canvas.width = 320;
     this.canvas.height = 240;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
   }
 
-  start(callbacks: OverShootCallbacks): void {
+  async start(callbacks: OverShootCallbacks): Promise<void> {
     this.callbacks = callbacks;
     this.isRunning = true;
-    this.motionHistory = [];
     this.eyeContactHistory = [];
-    this.analyze();
+    this.motionHistory = [];
+
+    if (this.apiKey && this.videoElement) {
+      try {
+        console.log('🔄 Attempting to start OverShoot with API key:', this.apiKey.substring(0, 10) + '...');
+        await this.startOverShoot();
+        console.log('🚀 OverShoot AI Vision started - using real API');
+      } catch (error) {
+        console.error('❌ Failed to start OverShoot, using fallback:', error);
+        this.useFallback = true;
+        this.startFallback();
+      }
+    } else {
+      console.log('📷 OverShoot using local fallback', { hasApiKey: !!this.apiKey, hasVideo: !!this.videoElement });
+      this.useFallback = true;
+      this.startFallback();
+    }
   }
 
-  private analyze = (): void => {
+  private async startOverShoot(): Promise<void> {
+    // Dynamic import to avoid SSR issues
+    console.log('📦 Importing OverShoot SDK...');
+    const { RealtimeVision } = await import('@overshoot/sdk');
+    console.log('✅ OverShoot SDK imported');
+
+    const prompt = `Analyze this person's body language for public speaking coaching. Return JSON with:
+- eye_contact: boolean (true if looking at camera/audience)
+- eye_contact_confidence: number 0-1
+- posture: "good" | "slouching" | "leaning" | "neutral"
+- motion_level: "still" | "low" | "moderate" | "high" | "excessive"
+- gesture_detected: boolean`;
+
+    const outputSchema = {
+      type: 'object',
+      properties: {
+        eye_contact: { type: 'boolean' },
+        eye_contact_confidence: { type: 'number' },
+        posture: { type: 'string', enum: ['good', 'slouching', 'leaning', 'neutral'] },
+        motion_level: { type: 'string', enum: ['still', 'low', 'moderate', 'high', 'excessive'] },
+        gesture_detected: { type: 'boolean' },
+      },
+      required: ['eye_contact', 'eye_contact_confidence', 'posture', 'motion_level', 'gesture_detected'],
+    };
+
+    console.log('🔧 Creating RealtimeVision instance...');
+    this.vision = new RealtimeVision({
+      apiUrl: 'https://cluster1.overshoot.ai/api/v0.2',
+      apiKey: this.apiKey!,
+      prompt,
+      outputSchema,
+      source: { type: 'camera', cameraFacing: 'user' },
+      debug: true,  // Enable SDK debug logging
+      processing: {
+        fps: 10,
+        sampling_ratio: 0.2,
+        clip_length_seconds: 1.0,
+        delay_seconds: 1.0,
+      },
+      onResult: (result) => {
+        if (!this.isRunning) return;
+        
+        if (!result.ok) {
+          console.warn('⚠️ OverShoot result not OK:', result.error);
+          return;
+        }
+
+        try {
+          const data: BodyLanguageResult = JSON.parse(result.result);
+          console.log('🎯 OverShoot AI Result:', {
+            eye_contact: data.eye_contact,
+            confidence: data.eye_contact_confidence,
+            posture: data.posture,
+            motion: data.motion_level,
+            gesture: data.gesture_detected,
+            latency: result.total_latency_ms + 'ms'
+          });
+          this.processOverShootResult(data);
+        } catch (e) {
+          console.error('❌ Failed to parse OverShoot result:', e, result.result);
+        }
+      },
+      onError: (error) => {
+        console.error('❌ OverShoot error:', error);
+        // Fall back to local detection on error
+        if (this.isRunning && !this.useFallback) {
+          this.useFallback = true;
+          this.startFallback();
+        }
+      },
+    });
+
+    console.log('▶️ Starting OverShoot vision.start()...');
+    await this.vision.start();
+    console.log('✅ OverShoot vision started successfully');
+  }
+
+  private processOverShootResult(data: BodyLanguageResult): void {
+    // Calculate eye contact percentage
+    const eyeContact = data.eye_contact ? data.eye_contact_confidence : 0;
+    this.eyeContactHistory.push(eyeContact);
+    if (this.eyeContactHistory.length > this.HISTORY_SIZE) {
+      this.eyeContactHistory.shift();
+    }
+
+    // Convert motion level to numeric value
+    const motionMap: Record<string, number> = {
+      'still': 0.1,
+      'low': 0.3,
+      'moderate': 0.5,
+      'high': 0.7,
+      'excessive': 0.9,
+    };
+    const motionEnergy = motionMap[data.motion_level] || 0.5;
+    this.motionHistory.push(motionEnergy);
+    if (this.motionHistory.length > this.HISTORY_SIZE) {
+      this.motionHistory.shift();
+    }
+
+    // Calculate averages
+    const avgEyeContact = this.eyeContactHistory.reduce((a, b) => a + b, 0) / this.eyeContactHistory.length;
+    const avgMotion = this.motionHistory.reduce((a, b) => a + b, 0) / this.motionHistory.length;
+
+    console.log('📊 Processed metrics:', {
+      eye_contact_pct: Math.round(avgEyeContact * 100) + '%',
+      motion_energy: Math.round(avgMotion * 100) + '%'
+    });
+
+    this.callbacks?.onSignals({
+      eye_contact_pct: Math.min(1, Math.max(0, avgEyeContact)),
+      motion_energy: Math.min(1, Math.max(0, avgMotion)),
+    });
+  }
+
+  // ==================== FALLBACK DETECTION ====================
+  // Used when OverShoot API is unavailable
+  
+  private fallbackAnimationFrame: number | null = null;
+  private fallbackLogCounter = 0;
+
+  private startFallback(): void {
+    this.fallbackLogCounter = 0;
+    this.analyzeFallback();
+  }
+
+  private analyzeFallback = (): void => {
     if (!this.isRunning || !this.videoElement || !this.ctx || !this.canvas) {
       return;
     }
 
     try {
-      // Draw current frame
       this.ctx.drawImage(
         this.videoElement,
         0, 0,
@@ -64,15 +236,14 @@ class OverShootAnalyzer {
       // Calculate motion energy
       const motionEnergy = this.calculateMotion(currentFrame);
       this.motionHistory.push(motionEnergy);
-      if (this.motionHistory.length > this.MOTION_HISTORY_SIZE) {
+      if (this.motionHistory.length > this.HISTORY_SIZE) {
         this.motionHistory.shift();
       }
 
-      // Estimate eye contact (face position proxy)
-      // In real implementation, would use face detection
+      // Estimate eye contact
       const eyeContact = this.estimateEyeContact(currentFrame);
       this.eyeContactHistory.push(eyeContact);
-      if (this.eyeContactHistory.length > this.EYE_CONTACT_HISTORY_SIZE) {
+      if (this.eyeContactHistory.length > this.HISTORY_SIZE) {
         this.eyeContactHistory.shift();
       }
 
@@ -80,7 +251,16 @@ class OverShootAnalyzer {
       const avgMotion = this.motionHistory.reduce((a, b) => a + b, 0) / this.motionHistory.length;
       const avgEyeContact = this.eyeContactHistory.reduce((a, b) => a + b, 0) / this.eyeContactHistory.length;
 
-      // Send signals
+      // Log every 10th frame to avoid console spam
+      this.fallbackLogCounter++;
+      if (this.fallbackLogCounter % 10 === 0) {
+        console.log('📷 Fallback metrics:', {
+          eye_contact_pct: Math.round(avgEyeContact * 100) + '%',
+          motion_energy: Math.round(avgMotion * 100) + '%',
+          mode: 'local pixel analysis'
+        });
+      }
+
       this.callbacks?.onSignals({
         eye_contact_pct: Math.min(1, Math.max(0, avgEyeContact)),
         motion_energy: Math.min(1, Math.max(0, avgMotion)),
@@ -88,23 +268,22 @@ class OverShootAnalyzer {
 
       this.lastFrame = currentFrame;
     } catch (e) {
-      console.error('OverShoot analysis error:', e);
+      console.error('Fallback analysis error:', e);
     }
 
     // Run at ~10 fps
-    this.animationFrame = window.setTimeout(() => {
-      this.animationFrame = requestAnimationFrame(this.analyze);
-    }, 100);
+    this.fallbackAnimationFrame = window.setTimeout(() => {
+      this.fallbackAnimationFrame = requestAnimationFrame(this.analyzeFallback);
+    }, 100) as unknown as number;
   };
 
   private calculateMotion(currentFrame: ImageData): number {
-    if (!this.lastFrame) return 0.4; // Default motion level
+    if (!this.lastFrame) return 0.4;
 
     const current = currentFrame.data;
     const last = this.lastFrame.data;
     let diff = 0;
 
-    // Sample every 4th pixel for performance
     for (let i = 0; i < current.length; i += 16) {
       const rDiff = Math.abs(current[i] - last[i]);
       const gDiff = Math.abs(current[i + 1] - last[i + 1]);
@@ -112,30 +291,21 @@ class OverShootAnalyzer {
       diff += (rDiff + gDiff + bDiff) / 3;
     }
 
-    // Normalize to 0-1 range
     const pixelCount = current.length / 16;
     const avgDiff = diff / pixelCount;
-
-    // Map to 0-1 range (typical movement is 5-30 avg diff)
     return Math.min(1, avgDiff / 40);
   }
 
   private estimateEyeContact(frame: ImageData): number {
-    // Simple brightness-based heuristic for face detection proxy
-    // In real implementation, would use face-api.js or MediaPipe
-
-    // Check center region of frame (where face likely is if looking at camera)
     const width = this.canvas?.width || 320;
     const height = this.canvas?.height || 240;
     const data = frame.data;
 
-    // Sample center 50% of frame
     const startX = Math.floor(width * 0.25);
     const endX = Math.floor(width * 0.75);
     const startY = Math.floor(height * 0.1);
     const endY = Math.floor(height * 0.6);
 
-    let brightness = 0;
     let skinTonePixels = 0;
     let sampleCount = 0;
 
@@ -146,10 +316,8 @@ class OverShootAnalyzer {
         const g = data[i + 1];
         const b = data[i + 2];
 
-        brightness += (r + g + b) / 3;
         sampleCount++;
 
-        // Simple skin tone detection
         if (r > 95 && g > 40 && b > 20 &&
             r > g && r > b &&
             Math.abs(r - g) > 15) {
@@ -158,22 +326,29 @@ class OverShootAnalyzer {
       }
     }
 
-    // If significant skin tone detected in center, assume looking at camera
     const skinRatio = skinTonePixels / sampleCount;
-
-    // Return eye contact estimate based on skin detection in center
-    // Add some randomness for more realistic behavior
     const baseContact = skinRatio > 0.15 ? 0.8 : 0.5;
     const noise = (Math.random() - 0.5) * 0.2;
 
     return Math.min(1, Math.max(0, baseContact + noise));
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.isRunning = false;
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
+
+    if (this.vision) {
+      try {
+        await this.vision.stop();
+      } catch (e) {
+        console.error('Error stopping OverShoot:', e);
+      }
+      this.vision = null;
+    }
+
+    if (this.fallbackAnimationFrame) {
+      clearTimeout(this.fallbackAnimationFrame);
+      cancelAnimationFrame(this.fallbackAnimationFrame);
+      this.fallbackAnimationFrame = null;
     }
   }
 }
@@ -182,3 +357,4 @@ class OverShootAnalyzer {
 export function createOverShootAnalyzer(): OverShootAnalyzer {
   return new OverShootAnalyzer();
 }
+

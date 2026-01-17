@@ -5,6 +5,9 @@ import { Metrics, THRESHOLDS, WEIGHTS } from './types';
 // Calculate individual signal scores (0-100)
 
 function scorePace(wpm: number): number {
+  // No speech yet - return neutral score
+  if (wpm === 0) return 50;
+  
   const { min, max } = THRESHOLDS.pace;
   if (wpm >= min && wpm <= max) return 100;
   if (wpm < min) {
@@ -70,9 +73,9 @@ export function calculateScore(metrics: Metrics): number {
   return Math.round(weighted);
 }
 
-// Apply smoothing: score = 0.7 * prev + 0.3 * current
+// Apply smoothing: score = 0.5 * prev + 0.5 * current (faster response)
 export function smoothScore(prevScore: number, currentScore: number): number {
-  return Math.round(0.7 * prevScore + 0.3 * currentScore);
+  return Math.round(0.5 * prevScore + 0.5 * currentScore);
 }
 
 // Determine which coaching cue to show
@@ -105,14 +108,14 @@ export function getActiveCues(metrics: Metrics): CueType[] {
   return cues.slice(0, 2);
 }
 
-// Default/initial metrics
+// Default/initial metrics - start neutral, let real data drive score
 export function getInitialMetrics(): Metrics {
   return {
-    pace_wpm: 150,
+    pace_wpm: 0,           // No speech yet
     filler_rate_per_min: 0,
-    eye_contact_pct: 0.7,
+    eye_contact_pct: 0.5,  // Neutral eye contact
     max_pause_ms: 0,
-    motion_energy: 0.4,
+    motion_energy: 0.3,    // Neutral motion
     pause_count: 0,
   };
 }
