@@ -16,6 +16,7 @@ import { createOverShootAnalyzer } from '@/lib/overshoot';
 import { createToneAnalyzer } from '@/lib/toneAnalyzer';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
+import CodingQuestion from '@/components/CodingQuestion';
 
 function PracticeContent() {
   const searchParams = useSearchParams();
@@ -31,7 +32,8 @@ function PracticeContent() {
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [skipCamera, setSkipCamera] = useState(false); // Enable camera for real analysis
+  const [skipCamera, setSkipCamera] = useState(true); // Camera off by default
+  const [cameraRequested, setCameraRequested] = useState(false);
 
   // Analysis state
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
@@ -337,6 +339,9 @@ function PracticeContent() {
           </button>
         )}
       </Navbar>
+
+      {/* For programming interviews */}
+      <CodingQuestion/>
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">

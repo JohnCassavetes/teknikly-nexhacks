@@ -16,9 +16,9 @@ export const presentationTypes = [
 
 // Interview types
 export const interviewTypes = [
-  { id: 'technical', label: 'Coding Interview', description: 'Coding or technical assessment' },
+  { id: 'programming', label: 'Coding Interview', description: 'Coding or technical assessment' },
   { id: 'behavioral', label: 'Behavioral Interview', description: 'Culture fit and experience' },
-  { id: 'case', label: 'Technical Interview', description: 'Verbal technical questions' },
+  { id: 'technical', label: 'Technical Interview', description: 'Verbal technical questions' },
 ] as const;
 
 export default function Home() {

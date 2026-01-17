@@ -10,10 +10,9 @@ interface MetricItemProps {
   label: string;
   value: string;
   status: 'good' | 'warning' | 'bad';
-  icon: string;
 }
 
-function MetricItem({ label, value, status, icon }: MetricItemProps) {
+function MetricItem({ label, value, status }: MetricItemProps) {
   const statusColors = {
     good: 'text-green-400 bg-green-500/10 border-green-500/30',
     warning: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
@@ -23,7 +22,6 @@ function MetricItem({ label, value, status, icon }: MetricItemProps) {
   return (
     <div className={`p-3 rounded-lg border ${statusColors[status]}`}>
       <div className="flex items-center gap-2 mb-1">
-        <span>{icon}</span>
         <span className="text-xs text-gray-400">{label}</span>
       </div>
       <div className="text-lg font-semibold">{value}</div>
@@ -67,25 +65,21 @@ export default function MetricsDisplay({ metrics }: MetricsDisplayProps) {
         label="Pace"
         value={`${metrics.pace_wpm} WPM`}
         status={getPaceStatus()}
-        icon="⚡"
       />
       <MetricItem
         label="Fillers"
         value={`${metrics.filler_rate_per_min}/min`}
         status={getFillerStatus()}
-        icon="💬"
       />
       <MetricItem
         label="Eye Contact"
         value={`${Math.round(metrics.eye_contact_pct * 100)}%`}
         status={getEyeContactStatus()}
-        icon="👁️"
       />
       <MetricItem
         label="Energy"
         value={`${Math.round(metrics.motion_energy * 100)}%`}
         status={getEnergyStatus()}
-        icon="💪"
       />
     </div>
   );

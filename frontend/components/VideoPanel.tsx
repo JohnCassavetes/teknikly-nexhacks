@@ -31,9 +31,9 @@ export default function VideoPanel({ stream, onVideoElement }: VideoPanelProps) 
         />
       ) : (
         <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-          <div className="text-center text-gray-500">
+          <div className="text-center text-gray-400">
             <svg
-              className="w-16 h-16 mx-auto mb-2"
+              className="w-16 h-16 mx-auto mb-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -45,7 +45,8 @@ export default function VideoPanel({ stream, onVideoElement }: VideoPanelProps) 
                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
               />
             </svg>
-            <p>Video Preview</p>
+            <p className="font-medium">Camera Disabled</p>
+            <p className="text-sm text-gray-500 mt-1">Click "Enable Camera" to analyze body language</p>
           </div>
         </div>
       )}
