@@ -1,10 +1,13 @@
 // POST /api/report - Generate post-session report from OpenRouter
 import { NextRequest, NextResponse } from 'next/server';
+import { TranscriptSegment } from '@/lib/types';
 
 interface ReportRequest {
   mode: 'interview' | 'presentation';
+  type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   duration_seconds: number;
   transcript: string;
+  enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
   metrics: {
     pace_wpm: number;
     filler_rate_per_min: number;
@@ -16,9 +19,122 @@ interface ReportRequest {
   final_score: number;
 }
 
-const SYSTEM_PROMPT = `You are an expert public speaking coach providing a post-session feedback report.
+// Format enriched transcript for AI with annotations
+function formatEnrichedTranscript(segments: TranscriptSegment[]): string {
+  if (!segments || segments.length === 0) return '';
+  
+  let result = '';
+  
+  for (const segment of segments) {
+    // Add pause indicator
+    if (segment.pauseBefore && segment.pauseBefore > 500) {
+      const pauseSec = (segment.pauseBefore / 1000).toFixed(1);
+      result += `[PAUSE ${pauseSec}s] `;
+    }
+    
+    // Add the text with filler markers
+    let text = segment.text;
+    if (segment.fillers && segment.fillers.length > 0) {
+      // Wrap fillers in markers
+      for (const filler of segment.fillers) {
+        const regex = new RegExp(`\\b(${filler})\\b`, 'gi');
+        text = text.replace(regex, '[FILLER: $1]');
+      }
+    }
+    result += text;
+    
+    // Add tone annotations
+    const toneMarkers: string[] = [];
+    if (segment.tone) {
+      if (segment.tone.volume === 'quiet') toneMarkers.push('quiet');
+      if (segment.tone.volume === 'loud') toneMarkers.push('loud');
+      if (segment.tone.energy === 'low') toneMarkers.push('low-energy');
+      if (segment.tone.energy === 'high') toneMarkers.push('high-energy');
+      if (segment.tone.pitchTrend === 'rising') toneMarkers.push('rising-pitch');
+      if (segment.tone.pitchTrend === 'falling') toneMarkers.push('falling-pitch');
+    }
+    if (segment.speakingRate && segment.speakingRate !== 'normal') {
+      toneMarkers.push(`${segment.speakingRate}-pace`);
+    }
+    if (segment.isHesitation) {
+      toneMarkers.push('hesitant');
+    }
+    
+    if (toneMarkers.length > 0) {
+      result += ` [${toneMarkers.join(', ')}]`;
+    }
+    
+    result += ' ';
+  }
+  
+  return result.trim();
+}
+
+// Summarize paralinguistic patterns
+function summarizeParalinguistics(segments: TranscriptSegment[]): string {
+  if (!segments || segments.length === 0) return '';
+  
+  let totalPauses = 0;
+  let longPauses = 0;
+  let quietSegments = 0;
+  let loudSegments = 0;
+  let lowEnergySegments = 0;
+  let highEnergySegments = 0;
+  let risingPitch = 0;
+  let fallingPitch = 0;
+  let hesitations = 0;
+  let fastSegments = 0;
+  let slowSegments = 0;
+  
+  for (const segment of segments) {
+    if (segment.pauseBefore && segment.pauseBefore > 500) totalPauses++;
+    if (segment.pauseBefore && segment.pauseBefore > 2000) longPauses++;
+    if (segment.tone?.volume === 'quiet') quietSegments++;
+    if (segment.tone?.volume === 'loud') loudSegments++;
+    if (segment.tone?.energy === 'low') lowEnergySegments++;
+    if (segment.tone?.energy === 'high') highEnergySegments++;
+    if (segment.tone?.pitchTrend === 'rising') risingPitch++;
+    if (segment.tone?.pitchTrend === 'falling') fallingPitch++;
+    if (segment.isHesitation) hesitations++;
+    if (segment.speakingRate === 'fast') fastSegments++;
+    if (segment.speakingRate === 'slow') slowSegments++;
+  }
+  
+  const total = segments.length;
+  const lines: string[] = [];
+  
+  if (totalPauses > 0) lines.push(`- Pauses detected: ${totalPauses} (${longPauses} were longer than 2 seconds)`);
+  if (quietSegments > 0) lines.push(`- Spoke quietly: ${Math.round(quietSegments/total*100)}% of the time`);
+  if (loudSegments > 0) lines.push(`- Spoke loudly: ${Math.round(loudSegments/total*100)}% of the time`);
+  if (lowEnergySegments > total * 0.3) lines.push(`- Low vocal energy detected in ${Math.round(lowEnergySegments/total*100)}% of speech`);
+  if (highEnergySegments > total * 0.3) lines.push(`- High vocal energy detected in ${Math.round(highEnergySegments/total*100)}% of speech`);
+  if (risingPitch > total * 0.3) lines.push(`- Frequent rising pitch (${Math.round(risingPitch/total*100)}%) - may sound uncertain or questioning`);
+  if (fallingPitch > total * 0.3) lines.push(`- Frequent falling pitch (${Math.round(fallingPitch/total*100)}%) - sounds declarative/confident`);
+  if (hesitations > 0) lines.push(`- Hesitations detected: ${hesitations} times`);
+  if (fastSegments > total * 0.3) lines.push(`- Speaking pace was fast ${Math.round(fastSegments/total*100)}% of the time`);
+  if (slowSegments > total * 0.3) lines.push(`- Speaking pace was slow ${Math.round(slowSegments/total*100)}% of the time`);
+  
+  return lines.join('\n');
+}
+
+const BASE_SYSTEM_PROMPT = `You are an expert public speaking coach providing a post-session feedback report.
 
 Analyze the practice session and provide constructive, actionable feedback.
+
+The transcript may include paralinguistic annotations that indicate HOW something was said, not just what was said:
+- [PAUSE Xs] = A pause of X seconds before speaking
+- [FILLER: word] = A filler word like "um", "uh", "like"
+- [quiet] = Spoke softly/low volume
+- [loud] = Spoke with high volume/projection
+- [low-energy] = Low vocal energy, may sound monotone or tired
+- [high-energy] = High vocal energy, enthusiastic delivery
+- [rising-pitch] = Voice pitch went up (can indicate uncertainty or questions)
+- [falling-pitch] = Voice pitch went down (indicates confident statements)
+- [fast-pace] = Speaking quickly in this segment
+- [slow-pace] = Speaking slowly in this segment
+- [hesitant] = Detected hesitation patterns
+
+Use these annotations to give more specific feedback about delivery, not just content.
 
 Respond with JSON only:
 {
@@ -28,10 +144,61 @@ Respond with JSON only:
   "next_goal": "One specific, measurable goal for the next session"
 }`;
 
+// Sub-category specific prompt additions
+const TYPE_PROMPTS: Record<string, string> = {
+  // Presentation sub-categories
+  comedy: `You are providing feedback as an experienced stand-up comedy coach.
+Focus on comedic timing, delivery rhythm, and stage presence.
+For comedians, strategic pauses are good for laugh timing, expressive energy is valued, and confident delivery is key.
+Frame feedback in terms of comedic performance - "punchline delivery", "setup pacing", "audience connection".
+Filler words can kill comedic timing. Suggest how to use pauses effectively for laughs.`,
+
+  pitch: `You are providing feedback as an expert sales and pitch coach.
+Focus on persuasion techniques, confidence projection, and clarity of value proposition.
+Emphasize how delivery affects credibility and trust-building with investors or clients.
+Frame feedback in terms of sales effectiveness - "conviction", "closing strength", "audience engagement".
+A steady, confident pace builds trust, while strong eye contact establishes credibility.`,
+
+  business: `You are providing feedback as a professional business communication coach.
+Focus on executive presence, clarity, and authority.
+Emphasize professional delivery, clear articulation, and confident body language.
+Frame feedback in terms of business effectiveness - "stakeholder engagement", "professional presence", "message clarity".`,
+
+  school: `You are providing feedback as a supportive educational coach for students.
+Be encouraging and constructive - this may be a young learner building confidence.
+Focus on clear communication, maintaining good pace, and building presentation confidence.
+Frame feedback in supportive terms - "great effort", "room to grow", "keep practicing".`,
+
+  // Interview sub-categories
+  technical: `You are providing feedback as a technical interview coach.
+Focus on clarity of technical explanations, structured communication, and confident delivery.
+In coding interviews, thinking out loud clearly is essential. Brief pauses to think are acceptable.
+Frame feedback in terms of interview success - "technical clarity", "problem-solving communication", "confidence under pressure".`,
+
+  behavioral: `You are providing feedback as a behavioral interview coach.
+Focus on storytelling ability, authenticity, and demonstrating cultural fit.
+Emphasize the STAR method effectiveness, genuine responses, and connecting with interviewers.
+Frame feedback in terms of interview success - "story structure", "authenticity", "rapport building".`,
+
+  'case': `You are providing feedback as a technical interview coach.
+Focus on logical flow of explanations, confident problem-solving delivery, and structured thinking.
+Emphasize how well they articulated their thought process.
+Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".`,
+};
+
+function getSystemPrompt(type?: string): string {
+  if (type && TYPE_PROMPTS[type]) {
+    return `${TYPE_PROMPTS[type]}
+
+${BASE_SYSTEM_PROMPT}`;
+  }
+  return BASE_SYSTEM_PROMPT;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ReportRequest = await request.json();
-    const { mode, duration_seconds, transcript, metrics, final_score } = body;
+    const { mode, type, duration_seconds, transcript, enrichedTranscript, metrics, final_score } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -41,7 +208,18 @@ export async function POST(request: NextRequest) {
     }
 
     const minutes = Math.round(duration_seconds / 60);
-    const userPrompt = `Mode: ${mode}
+    
+    // Format the enriched transcript if available
+    const annotatedTranscript = enrichedTranscript 
+      ? formatEnrichedTranscript(enrichedTranscript)
+      : transcript;
+    
+    // Get paralinguistic summary
+    const paralinguisticSummary = enrichedTranscript 
+      ? summarizeParalinguistics(enrichedTranscript)
+      : '';
+
+    let userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}
 Duration: ${minutes} minute(s)
 Final Score: ${final_score}/100
 
@@ -51,12 +229,31 @@ Session Metrics:
 - Eye contact: ${Math.round(metrics.eye_contact_pct * 100)}% (ideal: ≥70%)
 - Longest pause: ${metrics.max_pause_ms}ms (ideal: ≤2000ms)
 - Number of long pauses: ${metrics.pause_count}
-- Motion/energy level: ${Math.round(metrics.motion_energy * 100)}% (ideal: 30-60%)
+- Motion/energy level: ${Math.round(metrics.motion_energy * 100)}% (ideal: 30-60%)`;
 
-Transcript:
-"${transcript.slice(0, 2000)}"
+    if (paralinguisticSummary) {
+      userPrompt += `
 
-Provide a detailed feedback report.`;
+Voice & Delivery Analysis:
+${paralinguisticSummary}`;
+    }
+
+    userPrompt += `
+
+Annotated Transcript (with delivery markers):
+"${annotatedTranscript.slice(0, 2500)}"
+
+Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.`;
+
+    const systemPrompt = getSystemPrompt(type);
+
+    // Log the prompts being sent to the AI
+    console.log('=== REPORT API - Prompt Details ===');
+    console.log('Mode:', mode);
+    console.log('Type (sub-category):', type || 'none');
+    console.log('System Prompt:', systemPrompt);
+    console.log('User Prompt:', userPrompt);
+    console.log('===================================');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -69,7 +266,7 @@ Provide a detailed feedback report.`;
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 500,

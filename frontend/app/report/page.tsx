@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import ScoreGauge from '@/components/ScoreGauge';
 import { getSession, saveSession } from '@/lib/storage';
-import { Session, SessionReport } from '@/lib/types';
+import { Session, SessionReport, TranscriptSegment } from '@/lib/types';
 
 function ReportContent() {
   const searchParams = useSearchParams();
@@ -42,21 +42,28 @@ function ReportContent() {
   }, [sessionId, router]);
 
   const generateReport = async (sessionData: Session) => {
+    const requestBody = {
+      mode: sessionData.mode,
+      type: sessionData.type,
+      duration_seconds: sessionData.duration,
+      transcript: sessionData.transcript,
+      enrichedTranscript: sessionData.enrichedTranscript,
+      metrics: sessionData.metrics,
+      final_score: sessionData.finalScore,
+    };
+
+    console.log('📝 REPORT API Request:', requestBody);
+
     try {
       const response = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: sessionData.mode,
-          duration_seconds: sessionData.duration,
-          transcript: sessionData.transcript,
-          metrics: sessionData.metrics,
-          final_score: sessionData.finalScore,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const reportData = await response.json();
+        console.log('📝 REPORT API Response:', reportData);
         setReport(reportData);
 
         // Save report to session
@@ -223,9 +230,31 @@ function ReportContent() {
           {session.transcript && (
             <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
               <h3 className="text-lg font-semibold mb-3">Transcript</h3>
-              <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
-                {session.transcript || 'No transcript available.'}
-              </p>
+              
+              {/* Legend for annotations */}
+              {session.enrichedTranscript && session.enrichedTranscript.length > 0 && (
+                <div className="mb-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+                  <div className="font-medium text-gray-300 mb-2">Delivery Annotations:</div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    <span><span className="text-blue-400">⏸️</span> pause</span>
+                    <span><span className="bg-yellow-500/30 text-yellow-300 px-1 rounded">um</span> filler</span>
+                    <span><span className="text-purple-400">🔈</span> quiet</span>
+                    <span><span className="text-purple-400">🔊</span> loud</span>
+                    <span><span className="text-cyan-400">↗️</span> rising pitch</span>
+                    <span><span className="text-cyan-400">↘️</span> falling pitch</span>
+                    <span><span className="text-green-400">⚡</span> high energy</span>
+                    <span><span className="text-orange-400">😐</span> low energy</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-gray-300 text-sm leading-relaxed">
+                {session.enrichedTranscript && session.enrichedTranscript.length > 0 ? (
+                  <EnrichedTranscriptDisplay segments={session.enrichedTranscript} />
+                ) : (
+                  <p className="whitespace-pre-wrap">{session.transcript || 'No transcript available.'}</p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -248,6 +277,105 @@ function MetricCard({
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-sm text-gray-400">{label}</div>
       <div className="text-xs text-gray-500 mt-1">Target: {target}</div>
+    </div>
+  );
+}
+
+// Component to display enriched transcript with visual annotations
+function EnrichedTranscriptDisplay({ segments }: { segments: TranscriptSegment[] }) {
+  return (
+    <div className="space-y-1">
+      {segments.map((segment, index) => {
+        const elements: React.ReactNode[] = [];
+        
+        // Show pause indicator
+        if (segment.pauseBefore && segment.pauseBefore > 500) {
+          const pauseSec = (segment.pauseBefore / 1000).toFixed(1);
+          elements.push(
+            <span key={`pause-${index}`} className="text-blue-400 text-xs mx-1" title={`${pauseSec}s pause`}>
+              ⏸️ ({pauseSec}s)
+            </span>
+          );
+        }
+        
+        // Process text to highlight fillers
+        let textContent: React.ReactNode = segment.text;
+        if (segment.fillers && segment.fillers.length > 0) {
+          const parts: React.ReactNode[] = [];
+          let remaining = segment.text;
+          let keyIdx = 0;
+          
+          const fillerPattern = new RegExp(`\\b(${segment.fillers.join('|')})\\b`, 'gi');
+          const matches = [...segment.text.matchAll(fillerPattern)];
+          
+          if (matches.length > 0) {
+            let lastIndex = 0;
+            for (const match of matches) {
+              const idx = match.index!;
+              if (idx > lastIndex) {
+                parts.push(<span key={`t-${keyIdx++}`}>{segment.text.slice(lastIndex, idx)}</span>);
+              }
+              parts.push(
+                <span key={`f-${keyIdx++}`} className="bg-yellow-500/30 text-yellow-300 rounded px-0.5" title="Filler word">
+                  {match[0]}
+                </span>
+              );
+              lastIndex = idx + match[0].length;
+            }
+            if (lastIndex < segment.text.length) {
+              parts.push(<span key={`t-${keyIdx++}`}>{segment.text.slice(lastIndex)}</span>);
+            }
+            textContent = parts;
+          }
+        }
+        
+        // Build tone indicators
+        const toneIndicators: React.ReactNode[] = [];
+        if (segment.tone) {
+          if (segment.tone.volume === 'quiet') {
+            toneIndicators.push(<span key="vol-q" className="text-purple-400" title="Quiet">🔈</span>);
+          } else if (segment.tone.volume === 'loud') {
+            toneIndicators.push(<span key="vol-l" className="text-purple-400" title="Loud">🔊</span>);
+          }
+          if (segment.tone.energy === 'high') {
+            toneIndicators.push(<span key="eng-h" className="text-green-400" title="High energy">⚡</span>);
+          } else if (segment.tone.energy === 'low') {
+            toneIndicators.push(<span key="eng-l" className="text-orange-400" title="Low energy">😐</span>);
+          }
+          if (segment.tone.pitchTrend === 'rising') {
+            toneIndicators.push(<span key="pitch-r" className="text-cyan-400" title="Rising pitch">↗️</span>);
+          } else if (segment.tone.pitchTrend === 'falling') {
+            toneIndicators.push(<span key="pitch-f" className="text-cyan-400" title="Falling pitch">↘️</span>);
+          }
+        }
+        
+        // Speaking rate styling
+        const rateClass = segment.speakingRate === 'fast' 
+          ? 'tracking-tighter italic' 
+          : segment.speakingRate === 'slow' 
+          ? 'tracking-wider' 
+          : '';
+        
+        const hesitationClass = segment.isHesitation ? 'text-orange-300' : '';
+        
+        elements.push(
+          <span key={`text-${index}`} className={`${rateClass} ${hesitationClass}`.trim()}>
+            {textContent}
+          </span>
+        );
+        
+        if (toneIndicators.length > 0) {
+          elements.push(
+            <span key={`tone-${index}`} className="text-xs ml-0.5 opacity-70">
+              {toneIndicators}
+            </span>
+          );
+        }
+        
+        elements.push(<span key={`space-${index}`}> </span>);
+        
+        return elements;
+      })}
     </div>
   );
 }

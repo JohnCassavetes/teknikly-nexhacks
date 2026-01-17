@@ -40,6 +40,42 @@ const FILLER_WORDS = [
   'so', 'well', 'right', 'okay', 'er', 'ah', 'hmm', 'i mean'
 ];
 
+// Hesitation patterns
+const HESITATION_PATTERNS = [
+  /^(um|uh|er|ah)+\s/i,
+  /\s(um|uh|er|ah)+\s/gi,
+  /\.{2,}/, // Multiple periods indicating trailing off
+  /^i\s+(mean|think|guess)/i, // Hedging language
+];
+
+// Function to detect fillers in text
+function detectFillers(text: string): string[] {
+  const found: string[] = [];
+  const lowerText = text.toLowerCase();
+  for (const filler of FILLER_WORDS) {
+    const regex = new RegExp(`\\b${filler}\\b`, 'gi');
+    const matches = lowerText.match(regex);
+    if (matches) {
+      found.push(...matches.map(m => m.toLowerCase()));
+    }
+  }
+  return found;
+}
+
+// Function to detect hesitation
+function isHesitation(text: string): boolean {
+  return HESITATION_PATTERNS.some(pattern => pattern.test(text));
+}
+
+// Classify speaking rate based on words per segment duration
+function classifySpeakingRate(wordCount: number, durationMs: number): 'slow' | 'normal' | 'fast' {
+  if (durationMs < 100) return 'normal';
+  const wordsPerMinute = (wordCount / durationMs) * 60000;
+  if (wordsPerMinute < 120) return 'slow';
+  if (wordsPerMinute > 180) return 'fast';
+  return 'normal';
+}
+
 interface WisprCallbacks {
   onTranscript: (segment: TranscriptSegment) => void;
   onMetricsUpdate: (metrics: {
@@ -60,6 +96,7 @@ class WisprFlow {
   private fillerCount = 0;
   private pauseCount = 0;
   private maxPauseMs = 0;
+  private lastFinalTime = 0; // Track time of last FINAL segment for pause detection
   private lastSpeechTime = 0;
   private startTime = 0;
   private segments: TranscriptSegment[] = [];
@@ -86,6 +123,7 @@ class WisprFlow {
     this.isRunning = true;
     this.startTime = Date.now();
     this.lastSpeechTime = this.startTime;
+    this.lastFinalTime = this.startTime;
     this.wordCount = 0;
     this.fillerCount = 0;
     this.pauseCount = 0;
@@ -95,7 +133,10 @@ class WisprFlow {
     this.recognition.onresult = (event) => {
       const now = Date.now();
 
-      // Check for pause
+      // Calculate pause since last FINAL segment (not interim results)
+      const pauseSinceLastFinal = now - this.lastFinalTime;
+
+      // Check for pause (for metrics tracking)
       const pauseDuration = now - this.lastSpeechTime;
       if (pauseDuration > 1500 && this.lastSpeechTime !== this.startTime) {
         this.pauseCount++;
@@ -103,39 +144,51 @@ class WisprFlow {
           this.maxPauseMs = pauseDuration;
         }
       }
-      this.lastSpeechTime = now;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         const text = result[0].transcript;
+        const confidence = result[0].confidence || 0;
         const isFinal = result.isFinal;
+
+        // Calculate speaking rate for this segment
+        const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0);
+        const segmentDuration = now - this.lastSpeechTime;
+        const speakingRate = classifySpeakingRate(words.length, segmentDuration);
+
+        // Detect fillers and hesitation
+        const fillers = detectFillers(text);
+        const hesitation = isHesitation(text);
+
+        // Only add pauseBefore for FINAL segments, based on time since last FINAL
+        const shouldAddPause = isFinal && pauseSinceLastFinal > 500 && this.lastFinalTime !== this.startTime;
 
         const segment: TranscriptSegment = {
           text,
           timestamp: now,
           isFinal,
+          confidence: Math.round(confidence * 100) / 100,
+          pauseBefore: shouldAddPause ? pauseSinceLastFinal : undefined,
+          fillers: fillers.length > 0 ? fillers : undefined,
+          speakingRate,
+          isHesitation: hesitation || undefined,
         };
 
         if (isFinal) {
           this.segments.push(segment);
+          this.lastFinalTime = now; // Update last final time
 
           // Count words
-          const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0);
           this.wordCount += words.length;
 
           // Count fillers
-          const lowerText = text.toLowerCase();
-          for (const filler of FILLER_WORDS) {
-            const regex = new RegExp(`\\b${filler}\\b`, 'gi');
-            const matches = lowerText.match(regex);
-            if (matches) {
-              this.fillerCount += matches.length;
-            }
-          }
+          this.fillerCount += fillers.length;
         }
 
         this.callbacks?.onTranscript(segment);
       }
+
+      this.lastSpeechTime = now;
 
       // Update metrics
       this.updateMetrics();

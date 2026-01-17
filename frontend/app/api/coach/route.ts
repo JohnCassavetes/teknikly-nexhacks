@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 interface CoachRequest {
   mode: 'interview' | 'presentation';
+  type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   recent_transcript: string;
   metrics: {
     pace_wpm: number;
@@ -13,7 +14,7 @@ interface CoachRequest {
   };
 }
 
-const SYSTEM_PROMPT = `You are a real-time public speaking coach. Give ONE short, actionable coaching tip based on the metrics and transcript provided.
+const BASE_SYSTEM_PROMPT = `You are a real-time public speaking coach. Give ONE short, actionable coaching tip based on the metrics and transcript provided.
 
 Guidelines:
 - Keep tips under 15 words
@@ -27,22 +28,64 @@ Respond with JSON only:
   "priority": "pace" | "fillers" | "eye_contact" | "pauses" | "energy"
 }`;
 
+// Sub-category specific prompt additions
+const TYPE_PROMPTS: Record<string, string> = {
+  // Presentation sub-categories
+  comedy: `You are coaching a stand-up comedian. Focus on timing, delivery, and comedic pacing. 
+Comedians benefit from strategic pauses for laughs, expressive energy, and confident delivery. 
+Filler words can kill comedic timing. Eye contact helps connect with the audience.`,
+  
+  pitch: `You are coaching someone giving a sales or investor pitch. Focus on persuasion, confidence, and clarity.
+Emphasize conviction, clear value propositions, and maintaining engagement. 
+A steady pace builds trust, while eye contact establishes credibility.`,
+  
+  business: `You are coaching a business presenter. Focus on professionalism, clarity, and authority.
+Emphasize clear articulation, measured pace, and confident body language.
+Minimize filler words to maintain credibility.`,
+  
+  school: `You are coaching a student on their school presentation. Be encouraging and supportive.
+Focus on clear communication, good pace, and building confidence.
+Help them feel more comfortable speaking in front of others.`,
+  
+  // Interview sub-categories
+  technical: `You are coaching someone for a coding/technical interview. Focus on clear explanation of technical concepts.
+Emphasize structured responses, thinking out loud clearly, and confident delivery.
+Pauses to think are acceptable but should be brief.`,
+  
+  behavioral: `You are coaching someone for a behavioral interview. Focus on storytelling and authenticity.
+Emphasize the STAR method (Situation, Task, Action, Result), genuine responses, and good eye contact.
+Help them convey confidence and cultural fit.`,
+  
+  'case': `You are coaching someone for a technical verbal interview. Focus on clear problem-solving explanation.
+Emphasize logical flow, confident delivery, and structured thinking.
+Help them articulate their thought process clearly.`,
+};
+
+function getSystemPrompt(type?: string): string {
+  if (type && TYPE_PROMPTS[type]) {
+    return `${TYPE_PROMPTS[type]}
+
+${BASE_SYSTEM_PROMPT}`;
+  }
+  return BASE_SYSTEM_PROMPT;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: CoachRequest = await request.json();
-    const { mode, recent_transcript, metrics } = body;
+    const { mode, type, recent_transcript, metrics } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
       // Return a default tip if no API key
       return NextResponse.json({
-        tip: getDefaultTip(metrics),
+        tip: getDefaultTip(metrics, type),
         priority: getTopPriority(metrics),
       });
     }
 
-    const userPrompt = `Mode: ${mode}
+    const userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}
 Recent transcript: "${recent_transcript.slice(-500)}"
 
 Metrics:
@@ -53,6 +96,16 @@ Metrics:
 - Motion energy: ${Math.round(metrics.motion_energy * 100)}% (ideal: 30-60%)
 
 Give one coaching tip.`;
+
+    const systemPrompt = getSystemPrompt(type);
+
+    // Log the prompts being sent to the AI
+    console.log('=== COACH API (Live Tips) - Prompt Details ===');
+    console.log('Mode:', mode);
+    console.log('Type (sub-category):', type || 'none');
+    console.log('System Prompt:', systemPrompt);
+    console.log('User Prompt:', userPrompt);
+    console.log('==============================================');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -65,7 +118,7 @@ Give one coaching tip.`;
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 100,
@@ -76,7 +129,7 @@ Give one coaching tip.`;
     if (!response.ok) {
       console.error('OpenRouter error:', await response.text());
       return NextResponse.json({
-        tip: getDefaultTip(metrics),
+        tip: getDefaultTip(metrics, type),
         priority: getTopPriority(metrics),
       });
     }
@@ -90,7 +143,7 @@ Give one coaching tip.`;
     } catch {
       // Try to extract tip from non-JSON response
       return NextResponse.json({
-        tip: content.slice(0, 100) || getDefaultTip(metrics),
+        tip: content.slice(0, 100) || getDefaultTip(metrics, type),
         priority: getTopPriority(metrics),
       });
     }
@@ -112,14 +165,74 @@ function getTopPriority(metrics: CoachRequest['metrics']): string {
   return 'pace';
 }
 
-function getDefaultTip(metrics: CoachRequest['metrics']): string {
+function getDefaultTip(metrics: CoachRequest['metrics'], type?: string): string {
   const priority = getTopPriority(metrics);
-  const tips: Record<string, string> = {
+  
+  // Type-specific tips
+  const typeTips: Record<string, Record<string, string>> = {
+    comedy: {
+      pace: 'Slow down for better comedic timing.',
+      fillers: 'Cut the "ums" - they kill your punchlines!',
+      eye_contact: 'Connect with your audience - look at them!',
+      pauses: 'Use pauses strategically for laughs.',
+      energy: 'Bring more energy - own the stage!',
+    },
+    pitch: {
+      pace: 'Slow down to build trust and credibility.',
+      fillers: 'Pause confidently instead of using fillers.',
+      eye_contact: 'Maintain eye contact to establish credibility.',
+      pauses: 'Keep momentum - don\'t lose your investor\'s attention.',
+      energy: 'Project confidence with purposeful gestures.',
+    },
+    business: {
+      pace: 'Maintain a measured, professional pace.',
+      fillers: 'Eliminate fillers to sound more authoritative.',
+      eye_contact: 'Strong eye contact projects executive presence.',
+      pauses: 'Keep engagement high - minimize dead air.',
+      energy: 'Use confident, professional body language.',
+    },
+    school: {
+      pace: 'Take your time - you\'re doing great!',
+      fillers: 'Try pausing instead of saying "um".',
+      eye_contact: 'Look up at your audience more - you got this!',
+      pauses: 'Keep going - you\'re doing well!',
+      energy: 'Use your hands to help explain your points.',
+    },
+    technical: {
+      pace: 'Slow down when explaining complex concepts.',
+      fillers: 'Pause to think - it\'s better than fillers.',
+      eye_contact: 'Look at the interviewer while explaining.',
+      pauses: 'Brief pauses are OK - keep your flow.',
+      energy: 'Stay engaged - show enthusiasm for the problem.',
+    },
+    behavioral: {
+      pace: 'Take time to tell your story clearly.',
+      fillers: 'Pause and collect your thoughts.',
+      eye_contact: 'Connect with the interviewer - eye contact matters.',
+      pauses: 'Structure your answer - use the STAR method.',
+      energy: 'Show genuine enthusiasm for your experiences.',
+    },
+    'case': {
+      pace: 'Explain your logic clearly and steadily.',
+      fillers: 'Think silently, then speak confidently.',
+      eye_contact: 'Engage the interviewer as you explain.',
+      pauses: 'Walk through your reasoning step by step.',
+      energy: 'Show confidence in your problem-solving.',
+    },
+  };
+
+  // Use type-specific tip if available
+  if (type && typeTips[type] && typeTips[type][priority]) {
+    return typeTips[type][priority];
+  }
+
+  // Generic fallback tips
+  const defaultTips: Record<string, string> = {
     pace: 'Slow down and breathe between sentences.',
     fillers: 'Pause instead of using filler words.',
     eye_contact: 'Look directly at the camera.',
     pauses: 'Keep your energy up and minimize long pauses.',
     energy: 'Use natural hand gestures to emphasize points.',
   };
-  return tips[priority] || 'Keep up the great work!';
+  return defaultTips[priority] || 'Keep up the great work!';
 }

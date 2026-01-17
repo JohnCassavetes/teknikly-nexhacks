@@ -9,10 +9,11 @@ import CueBadges from '@/components/CueBadges';
 import LiveTranscript from '@/components/LiveTranscript';
 import MetricsDisplay from '@/components/MetricsDisplay';
 import CoachTip from '@/components/CoachTip';
-import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType } from '@/lib/types';
+import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo } from '@/lib/types';
 import { captureLocalMedia, stopMediaStream } from '@/lib/livekit';
 import { createWisprFlow } from '@/lib/wispr';
 import { createOverShootAnalyzer } from '@/lib/overshoot';
+import { createToneAnalyzer } from '@/lib/toneAnalyzer';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
 import CodingQuestion from '@/components/CodingQuestion';
@@ -43,6 +44,8 @@ function PracticeContent() {
   // Refs for cleanup
   const wisprRef = useRef<ReturnType<typeof createWisprFlow> | null>(null);
   const overshootRef = useRef<ReturnType<typeof createOverShootAnalyzer> | null>(null);
+  const toneAnalyzerRef = useRef<ReturnType<typeof createToneAnalyzer> | null>(null);
+  const currentToneRef = useRef<ToneInfo>({ volume: 'normal', energy: 'medium', pitchTrend: 'flat' });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const coachTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string>(generateSessionId());
@@ -121,31 +124,37 @@ function PracticeContent() {
       .map((s) => s.text)
       .join(' ');
 
+    const requestBody = {
+      mode,
+      type,
+      recent_transcript: recentTranscript,
+      metrics: {
+        pace_wpm: metrics.pace_wpm,
+        filler_rate_per_min: metrics.filler_rate_per_min,
+        eye_contact_pct: metrics.eye_contact_pct,
+        max_pause_ms: metrics.max_pause_ms,
+        motion_energy: metrics.motion_energy,
+      },
+    };
+
+    console.log('🎯 COACH API Request:', requestBody);
+
     try {
       const response = await fetch('/api/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode,
-          recent_transcript: recentTranscript,
-          metrics: {
-            pace_wpm: metrics.pace_wpm,
-            filler_rate_per_min: metrics.filler_rate_per_min,
-            eye_contact_pct: metrics.eye_contact_pct,
-            max_pause_ms: metrics.max_pause_ms,
-            motion_energy: metrics.motion_energy,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🎯 COACH API Response:', data);
         setCoachTip(data);
       }
     } catch (error) {
       console.error('Failed to fetch coach tip:', error);
     }
-  }, [isActive, transcript, metrics, mode]);
+  }, [isActive, transcript, metrics, mode, type]);
 
   // Start session
   const startSession = useCallback(() => {
@@ -161,18 +170,38 @@ function PracticeContent() {
     setCoachTip(null);
     sessionIdRef.current = generateSessionId();
 
+    // Initialize Tone Analyzer (audio prosody analysis)
+    if (stream) {
+      toneAnalyzerRef.current = createToneAnalyzer();
+      toneAnalyzerRef.current.initialize(stream).then(() => {
+        console.log('🎵 Tone analyzer initialized');
+        toneAnalyzerRef.current?.start({
+          onToneUpdate: (tone) => {
+            currentToneRef.current = tone;
+            console.log('🎵 Tone update:', tone);
+          },
+        });
+      });
+    }
+
     // Initialize Wispr (speech recognition)
     wisprRef.current = createWisprFlow();
     wisprRef.current.start({
       onTranscript: (segment) => {
+        // Attach current tone to the segment
+        const segmentWithTone = {
+          ...segment,
+          tone: { ...currentToneRef.current },
+        };
+        
         setTranscript((prev) => {
           // Replace pending segments, add final ones
-          if (segment.isFinal) {
+          if (segmentWithTone.isFinal) {
             const filtered = prev.filter((s) => s.isFinal);
-            return [...filtered, segment];
+            return [...filtered, segmentWithTone];
           }
           const finals = prev.filter((s) => s.isFinal);
-          return [...finals, segment];
+          return [...finals, segmentWithTone];
         });
       },
       onMetricsUpdate: (speechMetrics) => {
@@ -212,9 +241,9 @@ function PracticeContent() {
     }
 
     // Start periodic coaching tips - more frequently for better feedback
-    coachTimerRef.current = setInterval(fetchCoachTip, 8000);  // Every 8 seconds
-    // Fetch first tip after 5 seconds
-    setTimeout(fetchCoachTip, 5000);
+    coachTimerRef.current = setInterval(fetchCoachTip, 5000);  // Every 5 seconds
+    // Fetch first tip after 3 seconds
+    setTimeout(fetchCoachTip, 3000);
   }, [stream, skipCamera, fetchCoachTip]);
 
   // End session
@@ -228,6 +257,9 @@ function PracticeContent() {
     if (overshootRef.current) {
       overshootRef.current.stop();
     }
+    if (toneAnalyzerRef.current) {
+      toneAnalyzerRef.current.stop();
+    }
     if (coachTimerRef.current) {
       clearInterval(coachTimerRef.current);
     }
@@ -238,16 +270,21 @@ function PracticeContent() {
       .map((s) => s.text)
       .join(' ');
 
+    // Get enriched transcript with paralinguistic data
+    const enrichedTranscript = transcript.filter((s) => s.isFinal);
+
     // Save session to localStorage
     const session = {
       id: sessionIdRef.current,
       mode,
+      type,
       startTime: startTime || Date.now(),
       endTime: Date.now(),
       duration: elapsedTime,
       finalScore: score,
       metrics,
       transcript: fullTranscript,
+      enrichedTranscript,
       report: null,
     };
 
@@ -255,7 +292,7 @@ function PracticeContent() {
 
     // Navigate to report page
     router.push(`/report?id=${sessionIdRef.current}`);
-  }, [transcript, mode, startTime, elapsedTime, score, metrics, router]);
+  }, [transcript, mode, type, startTime, elapsedTime, score, metrics, router]);
 
   // Format time display
   const formatTime = (seconds: number) => {
