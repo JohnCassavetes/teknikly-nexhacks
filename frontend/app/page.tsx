@@ -18,7 +18,7 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="p-6 border-b border-gray-800">
+      <header className="p-4 border-b border-gray-800 sticky top-0 bg-gray-950/50 backdrop-blur-md z-10">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <span className="text-3xl">🎯</span>

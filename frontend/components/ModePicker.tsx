@@ -29,7 +29,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
         <button
           key={mode.id}
           onClick={() => onSelect(mode.id)}
-          className={`p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+          className={`p-6 rounded-xl border-2 text-left transition-all ${
             selectedMode === mode.id
               ? 'border-blue-500 bg-blue-500/10'
               : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
