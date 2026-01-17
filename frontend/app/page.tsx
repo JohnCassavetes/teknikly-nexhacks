@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 import ModePicker from '@/components/ModePicker';
 import { Mode } from '@/lib/types';
 
@@ -18,24 +19,14 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800 sticky top-0 bg-gray-950/50 backdrop-blur-md z-10">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🎯</span>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              TalkCoach
-            </h1>
-          </div>
-          <nav>
-            <a
-              href="/history"
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              Session History
-            </a>
-          </nav>
-        </div>
-      </header>
+      <Navbar>
+        <a
+          href="/history"
+          className="text-gray-400 hover:text-white transition-colors"
+        >
+          Session History
+        </a>
+      </Navbar>
 
       {/* Hero Section */}
       <section className="flex-1 flex flex-col items-center justify-center p-8">

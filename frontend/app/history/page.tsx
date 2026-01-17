@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 import ScoreGauge from '@/components/ScoreGauge';
 import { getSessions, deleteSession, clearAllSessions } from '@/lib/storage';
 import { Session } from '@/lib/types';
@@ -47,20 +48,14 @@ export default function HistoryPage() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <a href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <span className="font-bold text-xl">TalkCoach</span>
-          </a>
-          <a
-            href="/"
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
-          >
-            New Session
-          </a>
-        </div>
-      </header>
+      <Navbar>
+        <a
+          href="/"
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+        >
+          New Session
+        </a>
+      </Navbar>
 
       {/* Content */}
       <div className="flex-1 p-8">

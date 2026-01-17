@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 import ScoreGauge from '@/components/ScoreGauge';
 import { getSession, saveSession } from '@/lib/storage';
 import { Session, SessionReport } from '@/lib/types';
@@ -94,28 +95,20 @@ function ReportContent() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <a href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <span className="font-bold text-xl">TalkCoach</span>
-          </a>
-          <div className="flex gap-3">
-            <a
-              href="/history"
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              View History
-            </a>
-            <a
-              href="/"
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
-            >
-              New Session
-            </a>
-          </div>
-        </div>
-      </header>
+      <Navbar>
+        <a
+          href="/history"
+          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          View History
+        </a>
+        <a
+          href="/"
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+        >
+          New Session
+        </a>
+      </Navbar>
 
       {/* Content */}
       <div className="flex-1 p-8">

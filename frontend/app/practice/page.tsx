@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 import VideoPanel from '@/components/VideoPanel';
 import ScoreGauge from '@/components/ScoreGauge';
 import CueBadges from '@/components/CueBadges';
@@ -28,6 +29,7 @@ function PracticeContent() {
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [skipCamera, setSkipCamera] = useState(true); // Skip camera requirement
 
   // Analysis state
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
@@ -44,6 +46,11 @@ function PracticeContent() {
 
   // Initialize camera on mount
   useEffect(() => {
+    if (skipCamera) {
+      // Skip camera initialization - will show gray screen
+      return;
+    }
+
     const initMedia = async () => {
       const mediaStream = await captureLocalMedia();
       if (mediaStream) {
@@ -59,7 +66,7 @@ function PracticeContent() {
         stopMediaStream(stream);
       }
     };
-  }, []);
+  }, [skipCamera]);
 
   // Timer for elapsed time
   useEffect(() => {
@@ -129,7 +136,7 @@ function PracticeContent() {
 
   // Start session
   const startSession = useCallback(() => {
-    if (!stream) return;
+    if (!stream && !skipCamera) return;
 
     setIsActive(true);
     setStartTime(Date.now());
@@ -184,7 +191,7 @@ function PracticeContent() {
     coachTimerRef.current = setInterval(fetchCoachTip, 15000);
     // Fetch first tip after 10 seconds
     setTimeout(fetchCoachTip, 10000);
-  }, [stream, fetchCoachTip]);
+  }, [stream, skipCamera, fetchCoachTip]);
 
   // End session
   const endSession = useCallback(async () => {
@@ -259,41 +266,30 @@ function PracticeContent() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <a href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <span className="font-bold text-xl">TalkCoach</span>
-          </a>
-          <span className="px-3 py-1 bg-gray-800 rounded-full text-sm capitalize">
-            {mode}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          {isActive && (
-            <div className="flex items-center gap-2 text-red-400">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              <span className="font-mono text-lg">{formatTime(elapsedTime)}</span>
-            </div>
-          )}
-          {isActive ? (
-            <button
-              onClick={endSession}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
-            >
-              End Session
-            </button>
-          ) : (
-            <button
-              onClick={startSession}
-              disabled={!stream}
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Start Session
-            </button>
-          )}
-        </div>
-      </header>
+      <Navbar>
+        {isActive && (
+          <div className="flex items-center gap-2 text-red-400">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            <span className="font-mono text-lg">{formatTime(elapsedTime)}</span>
+          </div>
+        )}
+        {isActive ? (
+          <button
+            onClick={endSession}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+          >
+            End Session
+          </button>
+        ) : (
+          <button
+            onClick={startSession}
+            disabled={!stream && !skipCamera}
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Start Session
+          </button>
+        )}
+      </Navbar>
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
