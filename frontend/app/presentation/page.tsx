@@ -66,7 +66,7 @@ export default function Presentations() {
                 </div>
 
                 <button
-                    onClick={() => {}}
+                    onClick={handleStart}
                     disabled={false}
                     className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
                         selectedMode !== ""
