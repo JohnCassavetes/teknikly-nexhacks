@@ -52,6 +52,7 @@ export interface Session {
   id: string;
   mode: Mode;
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
+  context?: string; // User-provided context about what they're preparing for
   startTime: number;
   endTime: number;
   duration: number;

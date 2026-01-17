@@ -5,6 +5,7 @@ import { TranscriptSegment } from '@/lib/types';
 interface ReportRequest {
   mode: 'interview' | 'presentation';
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
+  context?: string; // User-provided context about what they're preparing for
   duration_seconds: number;
   transcript: string;
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
@@ -186,19 +187,30 @@ Emphasize how well they articulated their thought process.
 Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".`,
 };
 
-function getSystemPrompt(type?: string): string {
+function getSystemPrompt(type?: string, context?: string): string {
+  let prompt = BASE_SYSTEM_PROMPT;
+  
   if (type && TYPE_PROMPTS[type]) {
-    return `${TYPE_PROMPTS[type]}
+    prompt = `${TYPE_PROMPTS[type]}
 
 ${BASE_SYSTEM_PROMPT}`;
   }
-  return BASE_SYSTEM_PROMPT;
+  
+  // Add user-provided context if available
+  if (context) {
+    prompt = `${prompt}
+
+IMPORTANT CONTEXT: The user was specifically preparing for: "${context}"
+Tailor your feedback to be relevant to this specific context. Evaluate how well their delivery would work for this particular situation.`;
+  }
+  
+  return prompt;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: ReportRequest = await request.json();
-    const { mode, type, duration_seconds, transcript, enrichedTranscript, metrics, final_score } = body;
+    const { mode, type, context, duration_seconds, transcript, enrichedTranscript, metrics, final_score } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -219,7 +231,13 @@ export async function POST(request: NextRequest) {
       ? summarizeParalinguistics(enrichedTranscript)
       : '';
 
-    let userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}
+    let userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}`;
+    
+    if (context) {
+      userPrompt += `\nContext: The user was preparing for: ${context}`;
+    }
+    
+    userPrompt += `
 Duration: ${minutes} minute(s)
 Final Score: ${final_score}/100
 
@@ -245,7 +263,7 @@ Annotated Transcript (with delivery markers):
 
 Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.`;
 
-    const systemPrompt = getSystemPrompt(type);
+    const systemPrompt = getSystemPrompt(type, context);
 
     // Log the prompts being sent to the AI
     console.log('=== REPORT API - Prompt Details ===');

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 interface CoachRequest {
   mode: 'interview' | 'presentation';
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
+  context?: string; // User-provided context about what they're preparing for
   recent_transcript: string;
   metrics: {
     pace_wpm: number;
@@ -61,19 +62,30 @@ Emphasize logical flow, confident delivery, and structured thinking.
 Help them articulate their thought process clearly.`,
 };
 
-function getSystemPrompt(type?: string): string {
+function getSystemPrompt(type?: string, context?: string): string {
+  let prompt = BASE_SYSTEM_PROMPT;
+  
   if (type && TYPE_PROMPTS[type]) {
-    return `${TYPE_PROMPTS[type]}
+    prompt = `${TYPE_PROMPTS[type]}
 
 ${BASE_SYSTEM_PROMPT}`;
   }
-  return BASE_SYSTEM_PROMPT;
+  
+  // Add user-provided context if available
+  if (context) {
+    prompt = `${prompt}
+
+IMPORTANT CONTEXT: The user is specifically preparing for: "${context}"
+Tailor your coaching tips to be relevant to this specific context.`;
+  }
+  
+  return prompt;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: CoachRequest = await request.json();
-    const { mode, type, recent_transcript, metrics } = body;
+    const { mode, type, context, recent_transcript, metrics } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -85,7 +97,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}
+    let userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}`;
+    
+    if (context) {
+      userPrompt += `\nContext: ${context}`;
+    }
+    
+    userPrompt += `
 Recent transcript: "${recent_transcript.slice(-500)}"
 
 Metrics:
@@ -97,7 +115,7 @@ Metrics:
 
 Give one coaching tip.`;
 
-    const systemPrompt = getSystemPrompt(type);
+    const systemPrompt = getSystemPrompt(type, context);
 
     // Log the prompts being sent to the AI
     console.log('=== COACH API (Live Tips) - Prompt Details ===');

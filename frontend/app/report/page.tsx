@@ -45,6 +45,7 @@ function ReportContent() {
     const requestBody = {
       mode: sessionData.mode,
       type: sessionData.type,
+      context: sessionData.context,
       duration_seconds: sessionData.duration,
       transcript: sessionData.transcript,
       enrichedTranscript: sessionData.enrichedTranscript,
