@@ -143,20 +143,22 @@ class WisprFlow {
 
     this.recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
-      if (event.error === 'no-speech' && this.isRunning) {
-        // Restart on no-speech error
-        this.recognition?.start();
-      }
+      // Don't try to restart here - let onend handle it
+      // The 'no-speech' error will trigger onend automatically
     };
 
     this.recognition.onend = () => {
       if (this.isRunning) {
-        // Restart if still running
-        try {
-          this.recognition?.start();
-        } catch {
-          // Already started
-        }
+        // Restart if still running (handles no-speech and other interruptions)
+        setTimeout(() => {
+          if (this.isRunning && this.recognition) {
+            try {
+              this.recognition.start();
+            } catch {
+              // Already started or other error, ignore
+            }
+          }
+        }, 100);  // Small delay to ensure clean restart
       }
     };
 
