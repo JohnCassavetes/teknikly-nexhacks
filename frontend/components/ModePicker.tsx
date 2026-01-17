@@ -32,7 +32,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
           className={`p-6 rounded-xl border-2 text-left transition-all ${
             selectedMode === mode.id
               ? 'border-blue-500 bg-blue-500/10'
-              : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+              : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer '
           }`}
         >
           <div className="text-4xl mb-3">{mode.icon}</div>
