@@ -27,7 +27,7 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
         <div className="flex items-center gap-4">
           <a href="/" className="flex items-center gap-3">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent">
-              Teknikly
+              EasySpeech
             </h1>
           </a>
         </div>
