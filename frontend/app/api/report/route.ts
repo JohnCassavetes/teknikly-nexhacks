@@ -1,6 +1,7 @@
 // POST /api/report - Generate post-session report from OpenRouter
 import { NextRequest, NextResponse } from 'next/server';
 import { TranscriptSegment, CodingSessionData, CodeSnapshot, InterviewSetupData } from '@/lib/types';
+import { calculatePresentationScore } from '@/lib/scoring';
 
 interface ReportRequest {
   mode: 'interview' | 'presentation';
@@ -414,7 +415,8 @@ ${codingData ? 'Focus on how well they communicated their coding thought process
 
     if (!response.ok) {
       console.error('OpenRouter error:', await response.text());
-      return NextResponse.json(getDefaultReport(metrics, final_score, !!codingData));
+      const defaultReport = getDefaultReport(metrics, final_score, !!codingData);
+      return NextResponse.json(defaultReport);
     }
 
     const data = await response.json();
@@ -422,15 +424,45 @@ ${codingData ? 'Focus on how well they communicated their coding thought process
 
     try {
       const parsed = JSON.parse(content);
-      return NextResponse.json(parsed);
+      
+      // Calculate presentation score from metrics
+      const presentationScore = calculatePresentationScore(metrics);
+      
+      // Extract or estimate content score from the report
+      // If contentScore is explicitly provided in response, use it
+      // Otherwise, derive it from the overall_summary or final_score
+      let contentScore = parsed.contentScore;
+      if (!contentScore) {
+        // Estimate content score: start with final_score, adjust based on report tone
+        // A full report with good feedback suggests the candidate answered well
+        const hasStrongFeedback = parsed.strengths && parsed.strengths.length > 0;
+        contentScore = hasStrongFeedback ? Math.min(final_score + 5, 100) : final_score;
+      }
+      
+      return NextResponse.json({
+        ...parsed,
+        presentationScore,
+        contentScore: Math.round(contentScore),
+      });
     } catch {
       // Return default if parsing fails
-      return NextResponse.json(getDefaultReport(metrics, final_score, !!codingData));
+      const defaultReport = getDefaultReport(metrics, final_score, !!codingData);
+      const presentationScore = calculatePresentationScore(metrics);
+      return NextResponse.json({
+        ...defaultReport,
+        presentationScore,
+        contentScore: final_score,
+      });
     }
   } catch (error) {
     console.error('Report API error:', error);
+    // Return a basic error report with both scores
     return NextResponse.json(
-      { error: 'Failed to generate report' },
+      { 
+        error: 'Failed to generate report',
+        presentationScore: 0,
+        contentScore: 0,
+      },
       { status: 500 }
     );
   }
@@ -445,6 +477,8 @@ function getDefaultReport(
   strengths: string[];
   improvements: string[];
   next_goal: string;
+  presentationScore: number;
+  contentScore: number;
 } {
   const strengths: string[] = [];
   const improvements: string[] = [];
@@ -480,12 +514,15 @@ function getDefaultReport(
     }
 
     const scoreDescription = score >= 80 ? 'excellent' : score >= 60 ? 'good' : 'developing';
+    const presentationScore = calculatePresentationScore(metrics);
 
     return {
       overall_summary: `You delivered a ${scoreDescription} coding interview practice with a score of ${score}/100. Focus on continuously explaining your thought process as you code.`,
       strengths: strengths.slice(0, 2),
       improvements: improvements.slice(0, 3),
       next_goal: 'Next session: Practice explaining your approach for 30 seconds BEFORE you start writing any code.',
+      presentationScore,
+      contentScore: score,
     };
   }
 
@@ -534,11 +571,14 @@ function getDefaultReport(
   }
 
   const scoreDescription = score >= 80 ? 'excellent' : score >= 60 ? 'good' : 'developing';
+  const presentationScore = calculatePresentationScore(metrics);
 
   return {
     overall_summary: `You delivered a ${scoreDescription} practice session with a score of ${score}/100. ${strengths[0]} was a notable strength. Focus on ${improvements[0].toLowerCase()} in your next session.`,
     strengths: strengths.slice(0, 2),
     improvements: improvements.slice(0, 3),
     next_goal: `Next session: Aim for ${metrics.filler_rate_per_min > 2 ? 'fewer than 2 filler words per minute' : metrics.eye_contact_pct < 0.7 ? 'at least 70% eye contact' : 'maintaining a pace of 140-160 WPM'}.`,
+    presentationScore,
+    contentScore: score,
   };
 }

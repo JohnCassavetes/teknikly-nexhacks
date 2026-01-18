@@ -15,6 +15,7 @@ function ReportContent() {
   const [session, setSession] = useState<Session | null>(null);
   const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
@@ -30,14 +31,18 @@ function ReportContent() {
 
     setSession(loadedSession);
 
-    // If report already exists, use it
+    // If report already exists, use it and show immediately
     if (loadedSession.report) {
       setReport(loadedSession.report);
-      setLoading(false);
+      // Still show loading for consistency, but briefly
+      setTimeout(() => {
+        setLoading(false);
+        setShowContent(true);
+      }, 300);
       return;
     }
 
-    // Generate report
+    // Generate report with minimum delay for API
     generateReport(loadedSession);
   }, [sessionId, router]);
 
@@ -58,6 +63,7 @@ function ReportContent() {
     console.log('📝 REPORT API Request:', requestBody);
 
     try {
+      const startTime = Date.now();
       const response = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,6 +79,14 @@ function ReportContent() {
         const updatedSession = { ...sessionData, report: reportData };
         saveSession(updatedSession);
         setSession(updatedSession);
+
+        // Ensure minimum 1.5 second delay for better UX
+        const elapsedTime = Date.now() - startTime;
+        const remainingDelay = Math.max(1500 - elapsedTime, 0);
+        setTimeout(() => {
+          setLoading(false);
+          setShowContent(true);
+        }, remainingDelay);
       }
     } catch (error) {
       console.error('Failed to generate report:', error);
@@ -83,8 +97,11 @@ function ReportContent() {
         improvements: ['Continue practicing', 'Focus on metrics', 'Review feedback'],
         next_goal: 'Practice again to improve your score.',
       });
-    } finally {
-      setLoading(false);
+      // Still wait before showing
+      setTimeout(() => {
+        setLoading(false);
+        setShowContent(true);
+      }, 1500);
     }
   };
 
@@ -116,35 +133,48 @@ function ReportContent() {
 
       {/* Content */}
       <div className="flex-1 p-8">
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Title */}
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">Session Report</h1>
-            <p className="text-gray-400">
-              {session.mode.charAt(0).toUpperCase() + session.mode.slice(1)} Practice •{' '}
-              {formatDuration(session.duration)}
-            </p>
+        {loading ? (
+          <div className="max-w-4xl mx-auto flex flex-col items-center justify-center h-full">
+            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+            <p className="text-gray-400 text-lg">Generating your personalized report...</p>
           </div>
-
-          {/* Interview Question (if applicable) */}
-          {session.interviewSetup && (
-            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-500/30">
-              <h3 className="text-sm font-medium text-blue-400 mb-2">Question Answered:</h3>
-              <p className="text-white text-lg">{session.interviewSetup.selectedQuestion.question}</p>
-              {session.interviewSetup.selectedQuestion.context && (
-                <p className="text-gray-400 text-sm mt-2">💡 {session.interviewSetup.selectedQuestion.context}</p>
-              )}
-              {session.interviewSetup.source !== 'surprise_me' && (
-                <p className="text-gray-500 text-xs mt-3">
-                  Question generated from: {session.interviewSetup.source === 'resume' ? 'Your Resume' : 'Job Description'}
-                </p>
-              )}
+        ) : !showContent ? (
+          <div className="max-w-4xl mx-auto flex flex-col items-center justify-center h-full">
+            <div className="animate-pulse space-y-4">
+              <div className="h-12 bg-gray-700 rounded w-32 mx-auto"></div>
+              <div className="h-8 bg-gray-700 rounded w-48 mx-auto"></div>
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Title */}
+            <div className="text-center">
+              <h1 className="text-3xl font-bold mb-2">Session Report</h1>
+              <p className="text-gray-400">
+                {session.mode.charAt(0).toUpperCase() + session.mode.slice(1)} Practice •{' '}
+                {formatDuration(session.duration)}
+              </p>
+            </div>
 
-          {/* Score Card */}
-          <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 flex flex-col items-center">
-            <ScoreGauge score={session.finalScore} size="lg" />
+            {/* Interview Question (if applicable) */}
+            {session.interviewSetup && (
+              <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-500/30">
+                <h3 className="text-sm font-medium text-blue-400 mb-2">Question Answered:</h3>
+                <p className="text-white text-lg">{session.interviewSetup.selectedQuestion.question}</p>
+                {session.interviewSetup.selectedQuestion.context && (
+                  <p className="text-gray-400 text-sm mt-2">💡 {session.interviewSetup.selectedQuestion.context}</p>
+                )}
+                {session.interviewSetup.source !== 'surprise_me' && (
+                  <p className="text-gray-500 text-xs mt-3">
+                    Question generated from: {session.interviewSetup.source === 'resume' ? 'Your Resume' : 'Job Description'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Score Card */}
+            <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 flex flex-col items-center">
+              <ScoreGauge score={session.finalScore} size="lg" />
             <h2 className="text-xl font-semibold mt-4">
               {session.finalScore >= 80
                 ? 'Excellent Performance!'
@@ -153,6 +183,30 @@ function ReportContent() {
                 : 'Keep Practicing!'}
             </h2>
           </div>
+
+          {/* Presentation and Content Scores */}
+          {(session.presentationScore !== undefined || session.contentScore !== undefined) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {session.presentationScore !== undefined && (
+                <div className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 rounded-xl p-6 border border-blue-500/30 flex flex-col items-center">
+                  <h3 className="text-lg font-semibold mb-4 text-blue-400">Presentation Score</h3>
+                  <ScoreGauge score={session.presentationScore} size="md" />
+                  <p className="text-gray-300 text-sm mt-4 text-center">
+                    How you delivered: pace, energy, eye contact, filler words, and pauses
+                  </p>
+                </div>
+              )}
+              {session.contentScore !== undefined && (
+                <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30 flex flex-col items-center">
+                  <h3 className="text-lg font-semibold mb-4 text-purple-400">Content Score</h3>
+                  <ScoreGauge score={session.contentScore} size="md" />
+                  <p className="text-gray-300 text-sm mt-4 text-center">
+                    How well you aligned your answer with the question and delivered accurate content
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {loading ? (
             <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 text-center">
@@ -270,7 +324,8 @@ function ReportContent() {
               </div>
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );

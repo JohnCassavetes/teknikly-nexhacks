@@ -73,6 +73,25 @@ export function calculateScore(metrics: Metrics): number {
   return Math.round(weighted);
 }
 
+// Calculate presentation score (delivery-focused metrics)
+// This represents how well you delivered: pace, fillers, eye contact, energy, pauses
+export function calculatePresentationScore(metrics: Metrics): number {
+  const paceScore = scorePace(metrics.pace_wpm);
+  const fillerScore = scoreFillers(metrics.filler_rate_per_min);
+  const eyeScore = scoreEyeContact(metrics.eye_contact_pct);
+  const pauseScore = scorePauses(metrics.max_pause_ms);
+  const energyScore = scoreMotionEnergy(metrics.motion_energy);
+
+  const weighted =
+    paceScore * WEIGHTS.pace +
+    fillerScore * WEIGHTS.fillers +
+    eyeScore * WEIGHTS.eye_contact +
+    pauseScore * WEIGHTS.pauses +
+    energyScore * WEIGHTS.motion_energy;
+
+  return Math.round(weighted);
+}
+
 // Apply smoothing: score = 0.5 * prev + 0.5 * current (faster response)
 export function smoothScore(prevScore: number, currentScore: number): number {
   return Math.round(0.5 * prevScore + 0.5 * currentScore);
