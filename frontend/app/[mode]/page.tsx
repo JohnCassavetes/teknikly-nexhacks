@@ -41,7 +41,7 @@ export default function ModeTypePage() {
             Select your {modeLabel.toLowerCase()} type
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-5">
+          <div className={`grid grid-cols-1 ${types.length % 2 === 0 ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4 max-w-2xl mx-auto mb-5`}>
             {types.map((type) => (
               <button
                 key={type.id}
