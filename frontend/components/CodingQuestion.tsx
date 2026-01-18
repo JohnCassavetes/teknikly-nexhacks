@@ -4,23 +4,52 @@ import Editor from '@monaco-editor/react';
 
 type Language = 'python';
 
-const defaultCode = {
-    python: `def solution():
-    # Write your code here
-    print("Hello, World!")
-
-print(solution())`,
-};
-
 // EMKC API language mapping
 const languageConfig = {
     python: { language: 'python', version: '3.10.0', fileName: 'main.py' }
 };
 
+const imports = 
+`from collections import (
+    defaultdict,
+    Counter,
+    deque,
+    OrderedDict
+)
+import math
+from math import (
+    ceil,
+    floor,
+    sqrt,
+    gcd,
+    lcm,
+    inf
+)
+from functools import (
+    lru_cache,
+    cache,
+    reduce
+)
+import heapq
+import string
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Set,
+    Tuple,
+    Deque
+)
+`
+
 export default function CodingQuestion() {
     const demoQ = codingQuestions[0];
     const [language, setLanguage] = useState<Language>('python');
-    const [code, setCode] = useState(defaultCode.python);
+    const [code, setCode] = useState(`def solution(${demoQ.params}):
+    # Write your code here
+    
+
+${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
     const [output, setOutput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
 
@@ -39,7 +68,7 @@ export default function CodingQuestion() {
                     files: [
                         {
                             name: config.fileName,
-                            content: code,
+                            content: `${imports}\n${code}`,
                         },
                     ],
                 }),

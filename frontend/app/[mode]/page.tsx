@@ -40,7 +40,7 @@ export default function ModeTypePage() {
 
       <section className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="flex flex-col gap-4 justify-center items-center w-full max-w-3xl mb-8">
-          <h3 className="text-lg text-gray-400 text-center mb-6">
+          <h3 className="text-2xl text-gray-400 text-center mb-6">
             Select your {modeLabel.toLowerCase()} type
           </h3>
 
