@@ -46,6 +46,8 @@ export interface SessionReport {
   strengths: string[];
   improvements: string[];
   next_goal: string;
+  presentationScore?: number; // Score for delivery (0-100): pace, fillers, eye contact, energy, pauses
+  contentScore?: number; // Score for content quality (0-100): accuracy, alignment, technical correctness
 }
 
 export interface Session {
@@ -58,6 +60,8 @@ export interface Session {
   endTime: number;
   duration: number;
   finalScore: number;
+  presentationScore?: number; // Score for delivery (0-100): pace, fillers, eye contact, energy, pauses
+  contentScore?: number; // Score for content quality (0-100): accuracy, alignment, technical correctness
   metrics: Metrics;
   transcript: string;
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
