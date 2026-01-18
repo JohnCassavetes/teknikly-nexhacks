@@ -7,7 +7,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Teknikly",
+  title: "EasySpeech",
   description: "Practice your speaking skills",
 };
 
