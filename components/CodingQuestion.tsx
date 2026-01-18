@@ -54,10 +54,34 @@ interface CodingQuestionProps {
     questionLength?: number; // Length of question description (for dynamic intervals)
 }
 
+export interface CodingQuestion {
+    name: string;
+    desc: string;
+    params: string;
+
+    examples: {
+        input: string;
+        output: string;
+        explanation: string;
+    }[];
+
+    inputs: {
+        input: string;
+        target: number[];
+    }[];
+}
+
+
 const CodingQuestion = forwardRef<CodingQuestionRef, CodingQuestionProps>(
     ({ sessionStartTime, questionLength }, ref) => {
 
-    const demoQ = codingQuestions[Math.floor(Math.random() * codingQuestions.length)];
+    const [demoQ, setDemoQ] = useState<CodingQuestion | null>(null);
+
+    useEffect(() => {
+        setDemoQ(codingQuestions[Math.floor(Math.random() * codingQuestions.length)]);
+    }, []);
+    if (!demoQ) return null;
+
     const [language, setLanguage] = useState<Language>('python');
     const [code, setCode] = useState(`def solution(${demoQ.params}):
     # Write your code here
@@ -96,9 +120,11 @@ ${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
             };
             setCodeSnapshots(prev => [...prev, snapshot]);
             lastSnapshotCodeRef.current = code;
-            console.log('📸 Code snapshot taken at', snapshot.elapsedSeconds, 'seconds');
+            console.log('Code snapshot taken at', snapshot.elapsedSeconds, 'seconds');
         }
     }, [code, sessionStartTime]);
+
+    
 
     // Start snapshot interval when session starts
     useEffect(() => {
@@ -114,7 +140,7 @@ ${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
 
             // Set up periodic snapshots
             const interval = getSnapshotInterval();
-            console.log(`📷 Setting up code snapshots every ${interval / 1000}s`);
+            console.log(`Setting up code snapshots every ${interval / 1000}s`);
             snapshotIntervalRef.current = setInterval(takeSnapshot, interval);
 
             return () => {
