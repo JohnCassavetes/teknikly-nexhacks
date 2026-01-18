@@ -11,8 +11,8 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <div className="flex items-center gap-4">
           <a href="/" className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              TalkCoach
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent">
+              Teknikly
             </h1>
           </a>
         </div>

@@ -44,17 +44,20 @@ export default function Home() {
       </Navbar>
 
       {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="text-center mb-12">
+      <section className="flex-1 flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-5">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Master Your{' '}
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent">
               Communication
             </span>
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Real-time AI coaching for public speaking. Analyze your speech, body
-            language, and get instant feedback to improve.
+            Real-time AI coaching speaking. Master your presentation and interview skills today with&nbsp;
+            <span className="bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent font-bold">
+              Teknikly
+            </span>
+            .
           </p>
         </div>
 
@@ -72,7 +75,7 @@ export default function Home() {
           disabled={!selectedMode}
           className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
             selectedMode
-              ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'
+              ? 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white shadow-lg'
               : 'bg-gray-800 text-gray-500 cursor-not-allowed'
           }`}
         >
@@ -80,28 +83,7 @@ export default function Home() {
         </button>
       </section>
 
-      {/* Features */}
-      <section className="p-8 border-t border-gray-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <FeatureCard
-              icon="🎤"
-              title="Live Transcript"
-              description="See your words in real-time with speech analysis"
-            />
-            <FeatureCard
-              icon="📊"
-              title="Instant Scoring"
-              description="Track pace, fillers, eye contact, and more"
-            />
-            <FeatureCard
-              icon="📝"
-              title="Detailed Reports"
-              description="Get personalized improvement recommendations"
-            />
-          </div>
-        </div>
-      </section>
+      
     </main>
   );
 }

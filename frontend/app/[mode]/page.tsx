@@ -40,7 +40,7 @@ export default function ModeTypePage() {
 
       <section className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="flex flex-col gap-4 justify-center items-center w-full max-w-3xl mb-8">
-          <h3 className="text-lg text-gray-400 text-center mb-6">
+          <h3 className="text-2xl text-gray-400 text-center mb-6">
             Select your {modeLabel.toLowerCase()} type
           </h3>
 
@@ -68,7 +68,7 @@ export default function ModeTypePage() {
             disabled={selectedType === ''}
             className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
               selectedType !== ''
-                ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
+                ? 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white'
                 : 'bg-gray-800 text-gray-500 cursor-not-allowed'
             }`}
           >

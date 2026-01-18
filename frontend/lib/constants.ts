@@ -3,6 +3,7 @@ export const codingQuestions = [
     {
         name: 'TwoSum',
         desc: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n You may assume that each input would have exactly one solution, and you may not use the same element twice.\nYou can return the answer in any order.',
+        params: 'nums, target',
         examples: [
             {
                 input: 'nums = [2,7,11,15], target = 9',
@@ -14,6 +15,16 @@ export const codingQuestions = [
                 output: '[1,2]',
                 explanation: 'Because nums[1] + nums[2] == 6, we return [1, 2].'
             },
+        ],
+        inputs: [
+            {
+                input: `[2,7,11,15], 9`,
+                target: [0, 1]
+            },
+            {
+                input: `[3, 2, 4], 6`,
+                target: [1, 2]
+            }
         ]
     }
 ]
