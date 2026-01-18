@@ -57,7 +57,7 @@ export default function Home() {
         {/* Mode Selection */}
         <div className="w-full max-w-3xl mb-8">
           <h3 className="text-lg text-gray-400 text-center mb-6">
-            Select your practice mode
+            Practice for free today
           </h3>
           <ModePicker selectedMode={selectedMode} onSelect={setSelectedMode} />
         </div>

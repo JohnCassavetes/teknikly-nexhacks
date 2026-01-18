@@ -46,7 +46,7 @@ export default function ModeTypePage() {
               <button
                 key={type.id}
                 onClick={() => setSelectedType(type.id)}
-                className={`p-6 rounded-xl border-2 text-left transition duration-200 ${
+                className={`p-6 rounded-xl border-2 text-left hover:-translate-y-1 transition duration-200 ${
                   selectedType === type.id
                     ? 'border-blue-500 bg-blue-500/10'
                     : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer'
