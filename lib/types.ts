@@ -1,6 +1,6 @@
 // TalkCoach Types
 
-export type Mode = 'presentation' | 'interview';
+export type Mode = 'presentation' | 'interview' | 'live';
 
 export interface Metrics {
   pace_wpm: number;
@@ -67,6 +67,14 @@ export interface Session {
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
   codingData?: CodingSessionData; // Coding interview data (snapshots, final code)
   report: SessionReport | null;
+}
+
+// Live conversation types
+export interface ConversationTurn {
+  id: string;
+  role: 'ai' | 'user';
+  content: string;
+  timestamp: number;
 }
 
 export interface SessionState {

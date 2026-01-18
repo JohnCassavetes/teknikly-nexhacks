@@ -413,14 +413,14 @@ function PracticeContent() {
     // Initialize OverShoot (body language)
     overshootRef.current = createOverShootAnalyzer();
     const video = document.querySelector('video');
-    console.log('🎥 Looking for video element:', video ? 'FOUND' : 'NOT FOUND');
+    console.log('Looking for video element:', video ? 'FOUND' : 'NOT FOUND');
     if (video) {
-      console.log('🔧 Initializing OverShoot with video element...');
+      console.log('Initializing OverShoot with video element...');
       overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
-        console.log('✅ OverShoot initialized, starting analysis...');
+        console.log('OverShoot initialized, starting analysis...');
         overshootRef.current?.start({
           onSignals: (signals) => {
-            console.log('📊 OverShoot signals received:', signals);
+            console.log('OverShoot signals received:', signals);
             setMetrics((prev) => ({
               ...prev,
               eye_contact_pct: signals.eye_contact_pct,
@@ -429,10 +429,10 @@ function PracticeContent() {
           },
         });
       }).catch((err) => {
-        console.error('❌ OverShoot initialization failed:', err);
+        console.error('OverShoot initialization failed:', err);
       });
     } else {
-      console.warn('⚠️ No video element found - OverShoot body language analysis disabled');
+      console.warn('No video element found - OverShoot body language analysis disabled');
     }
 
     // Start periodic coaching tips - more frequently for better feedback
@@ -560,7 +560,7 @@ function PracticeContent() {
     let codingData: CodingSessionData | undefined;
     if (showCodingSection && codingQuestionRef.current) {
       codingData = codingQuestionRef.current.getCodingData();
-      console.log('💻 Coding data collected:', codingData);
+      console.log('Coding data collected:', codingData);
     }
 
     // Save session to localStorage
@@ -702,7 +702,7 @@ function PracticeContent() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-gray-950 via-gray-900 to-blue-950">
       {/* Interview Setup Modal for Behavioral and Technical Interviews */}
       {showInterviewSetup && (type === 'behavioral' || type === 'technical') && (
         <InterviewSetupModal

@@ -140,7 +140,7 @@ function ReportContent() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-gray-950 via-gray-900 to-blue-950">
       {/* Header */}
       <Navbar>
         <div className="flex gap-3">
@@ -190,7 +190,7 @@ function ReportContent() {
                 <h3 className="text-sm font-medium text-blue-400 mb-2">Question Answered:</h3>
                 <p className="text-white text-lg">{session.interviewSetup.selectedQuestion.question}</p>
                 {session.interviewSetup.selectedQuestion.context && (
-                  <p className="text-gray-400 text-sm mt-2">💡 {session.interviewSetup.selectedQuestion.context}</p>
+                  <p className="text-gray-400 text-sm mt-2">{session.interviewSetup.selectedQuestion.context}</p>
                 )}
                 {session.interviewSetup.source !== 'surprise_me' && (
                   <p className="text-gray-500 text-xs mt-3">
@@ -267,7 +267,7 @@ function ReportContent() {
                   {/* Improvements */}
                   <div className="bg-orange-500/10 rounded-xl p-6 border border-orange-500/30">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <span className="text-orange-400">↑</span> Areas to Improve
+                      Areas to Improve
                     </h3>
                     <ul className="space-y-2">
                       {report.improvements.map((improvement, i) => (
@@ -283,7 +283,7 @@ function ReportContent() {
                 {/* Next Goal */}
                 <div className="bg-blue-500/10 rounded-xl p-6 border border-blue-500/30">
                   <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <span className="text-blue-400">🎯</span> Next Goal
+                    Next Goal
                   </h3>
                   <p className="text-gray-300">{report.next_goal}</p>
                 </div>

@@ -27,7 +27,7 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
         <div className="flex items-center gap-4">
           <a href="/" className="flex items-center gap-3">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent">
-              Teknikly
+              EasySpeech
             </h1>
           </a>
         </div>
@@ -37,7 +37,7 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
             <button className="text-gray-300 hover:text-white transition-colors py-2">
               Presentations
             </button>
-            <div className="absolute left-0 mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
+            <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
               {presentationTypes.map((type) => (
                 <a
                   key={type.id}
@@ -55,7 +55,7 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
             <button className="text-gray-300 hover:text-white transition-colors py-2">
               Interviews
             </button>
-            <div className="absolute right-0 mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
+            <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
               {interviewTypes.map((type) => (
                 <a
                   key={type.id}
@@ -67,6 +67,13 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
               ))}
             </div>
           </div>
+
+          <a 
+            href={`/live`}
+            className="text-gray-300 hover:text-white transition-colors py-2"
+          >
+            Live
+          </a>
 
           {children && (
             <>
