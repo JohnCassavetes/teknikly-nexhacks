@@ -384,7 +384,7 @@ export default function InterviewSetupModal({ type, onComplete, onCancel }: Inte
                         Generating...
                       </span>
                     ) : (
-                      '🔄 Generate New Questions'
+                      'Generate New Questions'
                     )}
                   </button>
                 </div>

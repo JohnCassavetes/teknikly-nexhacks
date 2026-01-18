@@ -252,7 +252,7 @@ function ReportContent() {
                   {/* Strengths */}
                   <div className="bg-green-500/10 rounded-xl p-6 border border-green-500/30">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <span className="text-green-400">✓</span> Strengths
+                      <span className="text-green-400"></span> Strengths
                     </h3>
                     <ul className="space-y-2">
                       {report.strengths.map((strength, i) => (

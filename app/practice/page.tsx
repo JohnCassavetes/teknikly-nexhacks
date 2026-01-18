@@ -980,7 +980,7 @@ function PracticeContent() {
           {/* Follow-up Session Indicator */}
           {isFollowUp && (
             <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30">
-              <h3 className="text-sm font-medium text-purple-400 mb-2">🔄 Follow-up Question:</h3>
+              <h3 className="text-sm font-medium text-purple-400 mb-2">Follow-up Question:</h3>
               <p className="text-white text-lg">{followUpQuestion}</p>
               <p className="text-gray-400 text-xs mt-2">Building on your previous response to provide deeper practice</p>
             </div>
