@@ -60,7 +60,7 @@ function ReportContent() {
       final_score: sessionData.finalScore,
     };
 
-    console.log('📝 REPORT API Request:', requestBody);
+    console.log('REPORT API Request:', requestBody);
 
     try {
       const startTime = Date.now();

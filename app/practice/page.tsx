@@ -18,7 +18,8 @@ import { createOverShootAnalyzer } from '@/lib/overshoot';
 import { createToneAnalyzer } from '@/lib/toneAnalyzer';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
-import CodingQuestion, { CodingQuestionRef } from '@/components/CodingQuestion';
+import CodingQuestion, { CodingQuestionRef, CodingQuestionType } from '@/components/CodingQuestion';
+import { codingQuestions } from '@/lib/constants';
 
 function PracticeContent() {
   const searchParams = useSearchParams();
@@ -48,7 +49,7 @@ function PracticeContent() {
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [skipCamera, setSkipCamera] = useState(false); // Enable camera for real analysis
+  const [skipCamera, setSkipCamera] = useState(true); // Enable camera for real analysis
 
   // Analysis state
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
@@ -68,6 +69,12 @@ function PracticeContent() {
 
   // Show coding section for programming interviews
   const [showCodingSection, setShowCodingSection] = useState(false);
+
+  // Random coding question for programming interviews
+  const [selectedCodingQuestion, setSelectedCodingQuestion] = useState<any>(() => {
+    const randomIndex = Math.floor(Math.random() * codingQuestions.length);
+    return codingQuestions[randomIndex];
+  });
 
   // Ref to access CodingQuestion component methods
   const codingQuestionRef = useRef<CodingQuestionRef>(null);
@@ -167,7 +174,7 @@ function PracticeContent() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🎯 COACH API Response:', data);
+        console.log('COACH API Response:', data);
         setCoachTip(data);
       }
     } catch (error) {
@@ -230,6 +237,8 @@ function PracticeContent() {
 
   // Start session
   const startSession = useCallback(() => {
+    
+
     if (!stream && !skipCamera) return;
 
     // For presentation types that support context, show modal first (if not already shown)
@@ -258,11 +267,11 @@ function PracticeContent() {
     if (stream) {
       toneAnalyzerRef.current = createToneAnalyzer();
       toneAnalyzerRef.current.initialize(stream).then(() => {
-        console.log('🎵 Tone analyzer initialized');
+        console.log('Tone analyzer initialized');
         toneAnalyzerRef.current?.start({
           onToneUpdate: (tone) => {
             currentToneRef.current = tone;
-            console.log('🎵 Tone update:', tone);
+            console.log('Tone update:', tone);
           },
         });
       });
@@ -357,11 +366,11 @@ function PracticeContent() {
     if (stream) {
       toneAnalyzerRef.current = createToneAnalyzer();
       toneAnalyzerRef.current.initialize(stream).then(() => {
-        console.log('🎵 Tone analyzer initialized');
+        console.log('Tone analyzer initialized');
         toneAnalyzerRef.current?.start({
           onToneUpdate: (tone) => {
             currentToneRef.current = tone;
-            console.log('🎵 Tone update:', tone);
+            console.log('Tone update:', tone);
           },
         });
       });
@@ -506,11 +515,11 @@ function PracticeContent() {
     if (stream) {
       toneAnalyzerRef.current = createToneAnalyzer();
       toneAnalyzerRef.current.initialize(stream).then(() => {
-        console.log('🎵 Tone analyzer initialized');
+        console.log('Tone analyzer initialized');
         toneAnalyzerRef.current?.start({
           onToneUpdate: (tone) => {
             currentToneRef.current = tone;
-            console.log('🎵 Tone update:', tone);
+            console.log('Tone update:', tone);
           },
         });
       });
@@ -659,7 +668,7 @@ function PracticeContent() {
                     onClick={() => setPitchMode('own')}
                     className="w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all text-left"
                   >
-                    <h3 className="font-semibold text-white mb-1">🎯 Pitch Your Product</h3>
+                    <h3 className="font-semibold text-white mb-1">Pitch Your Product</h3>
                     <p className="text-gray-400 text-sm">Describe what you&apos;re selling for tailored coaching</p>
                   </button>
                   
@@ -667,7 +676,7 @@ function PracticeContent() {
                     onClick={() => setPitchMode('random')}
                     className="w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-purple-500 hover:bg-purple-500/10 transition-all text-left"
                   >
-                    <h3 className="font-semibold text-white mb-1">🎲 Random Product Challenge</h3>
+                    <h3 className="font-semibold text-white mb-1">Random Product Challenge</h3>
                     <p className="text-gray-400 text-sm">Get a random product to pitch on the spot</p>
                   </button>
                 </div>
@@ -771,7 +780,7 @@ function PracticeContent() {
                         Generating...
                       </span>
                     ) : (
-                      '🎲 Generate Product'
+                      'Generate Product'
                     )}
                   </button>
                 </div>
@@ -860,7 +869,7 @@ function PracticeContent() {
       </Navbar>
 
       {/* For programming interviews */}
-      {showCodingSection && <CodingQuestion ref={codingQuestionRef} sessionStartTime={startTime} />}
+      {showCodingSection && <CodingQuestion ref={codingQuestionRef} sessionStartTime={startTime} demoQ={selectedCodingQuestion} />}
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">

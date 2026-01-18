@@ -52,9 +52,10 @@ export interface CodingQuestionRef {
 interface CodingQuestionProps {
     sessionStartTime: number | null; // When the session started
     questionLength?: number; // Length of question description (for dynamic intervals)
+    demoQ?: CodingQuestionType;
 }
 
-export interface CodingQuestion {
+export interface CodingQuestionType {
     name: string;
     desc: string;
     params: string;
@@ -73,13 +74,14 @@ export interface CodingQuestion {
 
 
 const CodingQuestion = forwardRef<CodingQuestionRef, CodingQuestionProps>(
-    ({ sessionStartTime, questionLength }, ref) => {
+    ({ sessionStartTime, questionLength, demoQ }, ref) => {
 
-    const [demoQ, setDemoQ] = useState<CodingQuestion | null>(null);
+    // const [demoQ, setDemoQ] = useState(codingQuestions[0]);
 
-    useEffect(() => {
-        setDemoQ(codingQuestions[Math.floor(Math.random() * codingQuestions.length)]);
-    }, []);
+    // useEffect(() => {
+    //     setDemoQ(codingQuestions[2]);
+    // }, []);
+
     if (!demoQ) return null;
 
     const [language, setLanguage] = useState<Language>('python');
