@@ -143,3 +143,18 @@ export interface CodingSessionData {
   finalCode: string;
   codeOutput?: string; // Last run output
 }
+
+// Follow-up question/session tracking
+export interface SessionContext {
+  previousSessionId: string;
+  previousQuestion: string;
+  previousResponse: string; // Full transcript of previous response
+  previousMetrics: Metrics;
+  previousScore: number;
+}
+
+export interface FollowUpResponse {
+  question: string;
+  context?: string; // Why this question is being asked as follow-up
+  sessionContext: SessionContext;
+}

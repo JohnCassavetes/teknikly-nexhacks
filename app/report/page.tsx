@@ -4,8 +4,9 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import ScoreGauge from '@/components/ScoreGauge';
+import FollowUpModal from '@/components/FollowUpModal';
 import { getSession, saveSession } from '@/lib/storage';
-import { Session, SessionReport, TranscriptSegment } from '@/lib/types';
+import { Session, SessionReport, TranscriptSegment, FollowUpResponse } from '@/lib/types';
 
 function ReportContent() {
   const searchParams = useSearchParams();
@@ -16,6 +17,7 @@ function ReportContent() {
   const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
@@ -116,6 +118,19 @@ function ReportContent() {
     return `${mins}m ${secs}s`;
   };
 
+  const handleStartFollowUp = (followUpQuestion: FollowUpResponse) => {
+    // Navigate to practice with follow-up context
+    const params = new URLSearchParams({
+      mode: session?.mode || 'presentation',
+      type: session?.type || '',
+      isFollowUp: 'true',
+      previousSessionId: followUpQuestion.sessionContext.previousSessionId,
+      followUpQuestion: followUpQuestion.question,
+    });
+
+    router.push(`/practice?${params.toString()}`);
+  };
+
   if (!session) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -128,12 +143,20 @@ function ReportContent() {
     <main className="min-h-screen flex flex-col bg-gradient-to-b from-gray-950 via-gray-900 to-blue-950">
       {/* Header */}
       <Navbar>
-        <a
-          href="/"
-          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
-        >
-          New Session
-        </a>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowFollowUpModal(true)}
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors font-medium"
+          >
+            Continue
+          </button>
+          <a
+            href="/"
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+          >
+            New Session
+          </a>
+        </div>
       </Navbar>
 
       {/* Content */}
@@ -329,6 +352,15 @@ function ReportContent() {
           </div>
         )}
       </div>
+
+      {/* Follow-up Modal */}
+      {showFollowUpModal && session && (
+        <FollowUpModal
+          session={session}
+          onStartFollowUp={handleStartFollowUp}
+          onCancel={() => setShowFollowUpModal(false)}
+        />
+      )}
     </main>
   );
 }

@@ -25,6 +25,9 @@ function PracticeContent() {
   const router = useRouter();
   const mode = (searchParams.get('mode') as Mode) || 'presentation';
   const type = searchParams.get('type') || '';
+  const isFollowUp = searchParams.get('isFollowUp') === 'true';
+  const followUpQuestion = searchParams.get('followUpQuestion') || '';
+  const previousSessionId = searchParams.get('previousSessionId') || '';
 
   // Session state
   const [isActive, setIsActive] = useState(false);
@@ -34,6 +37,7 @@ function PracticeContent() {
   // Context prompt state (for presentations)
   const [showContextModal, setShowContextModal] = useState(false);
   const [sessionContext, setSessionContext] = useState('');
+  const [isFollowUpSession, setIsFollowUpSession] = useState(false);
 
   // Interview setup state (for behavioral and technical interviews)
   const [showInterviewSetup, setShowInterviewSetup] = useState(false);
@@ -95,6 +99,37 @@ function PracticeContent() {
       }
     };
   }, [skipCamera]);
+
+  // Handle follow-up initialization
+  useEffect(() => {
+    if (isFollowUp && followUpQuestion && !showContextModal && !showInterviewSetup) {
+      // Set context to the follow-up question
+      setSessionContext(followUpQuestion);
+      setIsFollowUpSession(true);
+      
+      // Determine if we should show setup
+      const interviewTypesWithSetup = ['behavioral', 'technical'];
+      if (mode === 'interview' && interviewTypesWithSetup.includes(type)) {
+        // Load previous session to restore interview setup context
+        const previousSession = localStorage.getItem(`session_${previousSessionId}`);
+        if (previousSession) {
+          const session = JSON.parse(previousSession);
+          if (session.interviewSetup) {
+            // Create a new setup with the follow-up question
+            setInterviewSetupData({
+              ...session.interviewSetup,
+              selectedQuestion: {
+                id: `followup_${Date.now()}`,
+                question: followUpQuestion,
+                context: 'Follow-up question to your previous response',
+              },
+              excludedQuestions: [...(session.interviewSetup.excludedQuestions || [])],
+            });
+          }
+        }
+      }
+    }
+  }, [isFollowUp, followUpQuestion, mode, type, previousSessionId, showContextModal, showInterviewSetup]);
 
   // Timer for elapsed time
   useEffect(() => {
@@ -232,6 +267,82 @@ function PracticeContent() {
   const startSession = useCallback(() => {
     if (!stream && !skipCamera) return;
 
+    // For follow-ups, skip modals if context is already set
+    if (isFollowUpSession && sessionContext) {
+      setIsActive(true);
+      setStartTime(Date.now());
+      setTranscript([]);
+      setMetrics(getInitialMetrics());
+      setScore(50);
+      setCoachTip(null);
+      sessionIdRef.current = generateSessionId();
+
+      // Initialize Tone Analyzer
+      if (stream) {
+        toneAnalyzerRef.current = createToneAnalyzer();
+        toneAnalyzerRef.current.initialize(stream).then(() => {
+          console.log('🎵 Tone analyzer initialized');
+          toneAnalyzerRef.current?.start({
+            onToneUpdate: (tone) => {
+              currentToneRef.current = tone;
+              console.log('🎵 Tone update:', tone);
+            },
+          });
+        });
+      }
+
+      // Initialize Wispr (speech recognition)
+      wisprRef.current = createWisprFlow();
+      wisprRef.current.start({
+        onTranscript: (segment) => {
+          const segmentWithTone = {
+            ...segment,
+            tone: { ...currentToneRef.current },
+          };
+          
+          setTranscript((prev) => {
+            if (segmentWithTone.isFinal) {
+              const filtered = prev.filter((s) => s.isFinal);
+              return [...filtered, segmentWithTone];
+            }
+            const finals = prev.filter((s) => s.isFinal);
+            return [...finals, segmentWithTone];
+          });
+        },
+        onMetricsUpdate: (speechMetrics) => {
+          setMetrics((prev) => ({
+            ...prev,
+            pace_wpm: speechMetrics.pace_wpm,
+            filler_rate_per_min: speechMetrics.filler_rate_per_min,
+            pause_count: speechMetrics.pause_count,
+            max_pause_ms: speechMetrics.max_pause_ms,
+          }));
+        },
+      });
+
+      // Initialize OverShoot (body language)
+      overshootRef.current = createOverShootAnalyzer();
+      const video = document.querySelector('video');
+      if (video) {
+        overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
+          overshootRef.current?.start({
+            onSignals: (signals) => {
+              setMetrics((prev) => ({
+                ...prev,
+                eye_contact_pct: signals.eye_contact_pct,
+                motion_energy: signals.motion_energy,
+              }));
+            },
+          });
+        });
+      }
+
+      // Start periodic coaching tips
+      coachTimerRef.current = setInterval(fetchCoachTip, 5000);
+      setTimeout(fetchCoachTip, 3000);
+      return;
+    }
+
     // For presentation types that support context, show modal first (if not already shown)
     if (contextTypes.includes(type) && !showContextModal && sessionContext === '') {
       setShowContextModal(true);
@@ -328,7 +439,7 @@ function PracticeContent() {
     coachTimerRef.current = setInterval(fetchCoachTip, 5000);  // Every 5 seconds
     // Fetch first tip after 3 seconds
     setTimeout(fetchCoachTip, 3000);
-  }, [stream, skipCamera, fetchCoachTip, type, mode, sessionContext, showContextModal, showInterviewSetup, interviewSetupData]);
+  }, [stream, skipCamera, fetchCoachTip, type, mode, sessionContext, showContextModal, showInterviewSetup, interviewSetupData, isFollowUpSession]);
 
   // Handle interview setup completion
   const handleInterviewSetupComplete = (setupData: InterviewSetupData) => {
@@ -866,8 +977,17 @@ function PracticeContent() {
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Video */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Follow-up Session Indicator */}
+          {isFollowUp && (
+            <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30">
+              <h3 className="text-sm font-medium text-purple-400 mb-2">🔄 Follow-up Question:</h3>
+              <p className="text-white text-lg">{followUpQuestion}</p>
+              <p className="text-gray-400 text-xs mt-2">Building on your previous response to provide deeper practice</p>
+            </div>
+          )}
+
           {/* Interview Question Display */}
-          {interviewSetupData && (
+          {interviewSetupData && !isFollowUp && (
             <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4 border border-blue-500/30">
               <h3 className="text-sm font-medium text-blue-400 mb-2">Your Question:</h3>
               <p className="text-white text-lg">{interviewSetupData.selectedQuestion.question}</p>
