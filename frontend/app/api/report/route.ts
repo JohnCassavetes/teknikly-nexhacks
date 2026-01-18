@@ -1,6 +1,6 @@
 // POST /api/report - Generate post-session report from OpenRouter
 import { NextRequest, NextResponse } from 'next/server';
-import { TranscriptSegment } from '@/lib/types';
+import { TranscriptSegment, CodingSessionData, CodeSnapshot } from '@/lib/types';
 
 interface ReportRequest {
   mode: 'interview' | 'presentation';
@@ -9,6 +9,7 @@ interface ReportRequest {
   duration_seconds: number;
   transcript: string;
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
+  codingData?: CodingSessionData; // For programming interviews
   metrics: {
     pace_wpm: number;
     filler_rate_per_min: number;
@@ -118,6 +119,40 @@ function summarizeParalinguistics(segments: TranscriptSegment[]): string {
   return lines.join('\n');
 }
 
+// Format code evolution from snapshots for the AI to understand the coding journey
+function formatCodeEvolution(codingData: CodingSessionData): string {
+  if (!codingData.codeSnapshots || codingData.codeSnapshots.length === 0) {
+    return `Final Code:\n\`\`\`python\n${codingData.finalCode}\n\`\`\``;
+  }
+  
+  let result = `## Coding Problem: ${codingData.questionName}\n`;
+  result += `Problem Description: ${codingData.questionDescription}\n\n`;
+  result += `## Code Evolution (snapshots showing how the code developed over time):\n\n`;
+  
+  // Show meaningful snapshots (skip consecutive identical ones)
+  let lastCode = '';
+  for (let i = 0; i < codingData.codeSnapshots.length; i++) {
+    const snapshot = codingData.codeSnapshots[i];
+    if (snapshot.code !== lastCode) {
+      const minutes = Math.floor(snapshot.elapsedSeconds / 60);
+      const seconds = snapshot.elapsedSeconds % 60;
+      result += `### At ${minutes}:${seconds.toString().padStart(2, '0')}:\n`;
+      result += `\`\`\`python\n${snapshot.code}\n\`\`\`\n\n`;
+      lastCode = snapshot.code;
+    }
+  }
+  
+  // Always show final code clearly
+  result += `## Final Submitted Code:\n`;
+  result += `\`\`\`python\n${codingData.finalCode}\n\`\`\`\n`;
+  
+  if (codingData.codeOutput) {
+    result += `\n## Last Execution Output:\n\`\`\`\n${codingData.codeOutput}\n\`\`\`\n`;
+  }
+  
+  return result;
+}
+
 const BASE_SYSTEM_PROMPT = `You are an expert public speaking coach providing a post-session feedback report.
 
 Analyze the practice session and provide constructive, actionable feedback.
@@ -171,10 +206,49 @@ Focus on clear communication, maintaining good pace, and building presentation c
 Frame feedback in supportive terms - "great effort", "room to grow", "keep practicing".`,
 
   // Interview sub-categories
-  technical: `You are providing feedback as a technical interview coach.
-Focus on clarity of technical explanations, structured communication, and confident delivery.
-In coding interviews, thinking out loud clearly is essential. Brief pauses to think are acceptable.
-Frame feedback in terms of interview success - "technical clarity", "problem-solving communication", "confidence under pressure".`,
+  technical: `You are providing feedback as a technical interview coach specializing in coding interviews.
+Focus on how well the candidate EXPLAINED their thought process while coding, NOT on fixing their implementation.
+Evaluate:
+1. Did they think out loud clearly and consistently?
+2. Did they explain their approach BEFORE coding?
+3. Did they walk through their logic as they wrote code?
+4. Did they explain trade-offs and time/space complexity?
+5. Did they communicate when stuck or when testing?
+
+The code evolution shows how their solution developed over time - use this to assess if they communicated their iterative process.
+DO NOT focus on fixing their code or providing the "correct" solution.
+DO provide advice on how to better communicate their problem-solving approach.
+Frame feedback in terms of communication - "explaining your approach", "thinking out loud", "articulating complexity", "narrating your debugging".`,
+
+  programming: `You are providing feedback as a technical coding interview coach.
+IMPORTANT: Focus PRIMARILY on how well the candidate COMMUNICATED and EXPLAINED their coding process, NOT on the correctness of their code.
+
+You will receive:
+1. A transcript of what they said while coding
+2. Code snapshots showing how their solution evolved over time
+3. Their final code
+
+Evaluate their EXPLANATION and COMMUNICATION skills:
+- Did they clearly explain their approach before starting to code?
+- Did they think out loud consistently while writing code?
+- Did they explain their choice of data structures and algorithms?
+- Did they discuss time and space complexity?
+- Did they verbalize their debugging process when something didn't work?
+- Did they explain their test cases and edge cases?
+
+DO NOT:
+- Focus on whether their solution is optimal or correct
+- Provide the "right" solution to the problem
+- Criticize their coding skills directly
+
+DO:
+- Praise clear communication of thought process
+- Suggest ways to better articulate their approach
+- Note where they could have explained their reasoning more
+- Highlight good examples of "thinking out loud" from their session
+- Give advice on how to communicate while coding under pressure
+
+Frame all feedback in terms of interview communication - "explaining your approach", "verbalizing your thought process", "communicating trade-offs".`,
 
   behavioral: `You are providing feedback as a behavioral interview coach.
 Focus on storytelling ability, authenticity, and demonstrating cultural fit.
@@ -210,13 +284,13 @@ Tailor your feedback to be relevant to this specific context. Evaluate how well 
 export async function POST(request: NextRequest) {
   try {
     const body: ReportRequest = await request.json();
-    const { mode, type, context, duration_seconds, transcript, enrichedTranscript, metrics, final_score } = body;
+    const { mode, type, context, duration_seconds, transcript, enrichedTranscript, codingData, metrics, final_score } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
       // Return a default report if no API key
-      return NextResponse.json(getDefaultReport(metrics, final_score));
+      return NextResponse.json(getDefaultReport(metrics, final_score, !!codingData));
     }
 
     const minutes = Math.round(duration_seconds / 60);
@@ -229,6 +303,11 @@ export async function POST(request: NextRequest) {
     // Get paralinguistic summary
     const paralinguisticSummary = enrichedTranscript 
       ? summarizeParalinguistics(enrichedTranscript)
+      : '';
+
+    // Format code evolution for programming interviews
+    const codeEvolution = codingData 
+      ? formatCodeEvolution(codingData)
       : '';
 
     let userPrompt = `Mode: ${mode}${type ? ` (${type})` : ''}`;
@@ -256,12 +335,24 @@ Voice & Delivery Analysis:
 ${paralinguisticSummary}`;
     }
 
+    // Add code evolution for programming interviews
+    if (codeEvolution) {
+      userPrompt += `
+
+=== CODING SESSION DATA ===
+${codeEvolution}
+=== END CODING SESSION DATA ===
+
+IMPORTANT: Analyze how well they EXPLAINED their thought process while coding.
+The code snapshots show their progress over time - use this to assess if they communicated their iterative approach.`;
+    }
+
     userPrompt += `
 
 Annotated Transcript (with delivery markers):
 "${annotatedTranscript.slice(0, 2500)}"
 
-Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.`;
+${codingData ? 'Focus on how well they communicated their coding thought process, NOT on fixing their implementation.' : 'Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.'}`;
 
     const systemPrompt = getSystemPrompt(type, context);
 
@@ -269,6 +360,7 @@ Provide a detailed feedback report that addresses both WHAT was said and HOW it 
     console.log('=== REPORT API - Prompt Details ===');
     console.log('Mode:', mode);
     console.log('Type (sub-category):', type || 'none');
+    console.log('Has coding data:', !!codingData);
     console.log('System Prompt:', systemPrompt);
     console.log('User Prompt:', userPrompt);
     console.log('===================================');
@@ -294,7 +386,7 @@ Provide a detailed feedback report that addresses both WHAT was said and HOW it 
 
     if (!response.ok) {
       console.error('OpenRouter error:', await response.text());
-      return NextResponse.json(getDefaultReport(metrics, final_score));
+      return NextResponse.json(getDefaultReport(metrics, final_score, !!codingData));
     }
 
     const data = await response.json();
@@ -305,7 +397,7 @@ Provide a detailed feedback report that addresses both WHAT was said and HOW it 
       return NextResponse.json(parsed);
     } catch {
       // Return default if parsing fails
-      return NextResponse.json(getDefaultReport(metrics, final_score));
+      return NextResponse.json(getDefaultReport(metrics, final_score, !!codingData));
     }
   } catch (error) {
     console.error('Report API error:', error);
@@ -318,7 +410,8 @@ Provide a detailed feedback report that addresses both WHAT was said and HOW it 
 
 function getDefaultReport(
   metrics: ReportRequest['metrics'],
-  score: number
+  score: number,
+  isCodingInterview: boolean = false
 ): {
   overall_summary: string;
   strengths: string[];
@@ -328,6 +421,47 @@ function getDefaultReport(
   const strengths: string[] = [];
   const improvements: string[] = [];
 
+  // For coding interviews, focus on communication-related feedback
+  if (isCodingInterview) {
+    if (metrics.pace_wpm >= 120 && metrics.pace_wpm <= 180) {
+      strengths.push('Good pace when explaining your thought process');
+    } else if (metrics.pace_wpm > 180) {
+      improvements.push('Slow down when explaining your approach - let the interviewer follow your logic');
+    } else {
+      improvements.push('Try to verbalize your thoughts more consistently while coding');
+    }
+
+    if (metrics.filler_rate_per_min <= 3) {
+      strengths.push('Clear communication with minimal filler words');
+    } else {
+      improvements.push('Replace filler words with brief pauses to think - this shows confidence');
+    }
+
+    if (metrics.eye_contact_pct >= 0.5) {
+      strengths.push('Good engagement with the camera/interviewer');
+    } else {
+      improvements.push('Occasionally look at the camera when explaining key points');
+    }
+
+    // Ensure we have enough items
+    while (strengths.length < 2) {
+      strengths.push('Attempted to think out loud while coding');
+    }
+    while (improvements.length < 3) {
+      improvements.push('Practice narrating your debugging process when code doesn\'t work');
+    }
+
+    const scoreDescription = score >= 80 ? 'excellent' : score >= 60 ? 'good' : 'developing';
+
+    return {
+      overall_summary: `You delivered a ${scoreDescription} coding interview practice with a score of ${score}/100. Focus on continuously explaining your thought process as you code.`,
+      strengths: strengths.slice(0, 2),
+      improvements: improvements.slice(0, 3),
+      next_goal: 'Next session: Practice explaining your approach for 30 seconds BEFORE you start writing any code.',
+    };
+  }
+
+  // Original logic for non-coding interviews
   // Analyze metrics for strengths
   if (metrics.pace_wpm >= 140 && metrics.pace_wpm <= 160) {
     strengths.push('Good speaking pace');

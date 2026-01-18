@@ -60,6 +60,7 @@ export interface Session {
   metrics: Metrics;
   transcript: string;
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
+  codingData?: CodingSessionData; // Coding interview data (snapshots, final code)
   report: SessionReport | null;
 }
 
@@ -90,3 +91,19 @@ export const WEIGHTS = {
   pauses: 0.15,
   motion_energy: 0.10,
 };
+
+// Code snapshot for tracking code changes during coding interviews
+export interface CodeSnapshot {
+  code: string;
+  timestamp: number; // Unix timestamp
+  elapsedSeconds: number; // Seconds since session start
+}
+
+// Coding session data for technical interviews
+export interface CodingSessionData {
+  questionName: string;
+  questionDescription: string;
+  codeSnapshots: CodeSnapshot[]; // Periodic snapshots of code changes
+  finalCode: string;
+  codeOutput?: string; // Last run output
+}
