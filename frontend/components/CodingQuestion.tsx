@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense, useImperativeHandle, forwardRef } from 'react';
 import { codingQuestions } from '@/lib/constants';
 import Editor from '@monaco-editor/react';
+import { CodeSnapshot, CodingSessionData } from '@/lib/types';
 
 type Language = 'python';
 
@@ -42,7 +43,19 @@ from typing import (
 )
 `
 
-export default function CodingQuestion() {
+// Methods exposed to parent via ref
+export interface CodingQuestionRef {
+    getCodingData: () => CodingSessionData;
+    getCode: () => string;
+}
+
+interface CodingQuestionProps {
+    sessionStartTime: number | null; // When the session started
+    questionLength?: number; // Length of question description (for dynamic intervals)
+}
+
+const CodingQuestion = forwardRef<CodingQuestionRef, CodingQuestionProps>(
+    ({ sessionStartTime, questionLength }, ref) => {
     const demoQ = codingQuestions[0];
     const [language, setLanguage] = useState<Language>('python');
     const [code, setCode] = useState(`def solution(${demoQ.params}):
@@ -52,6 +65,89 @@ export default function CodingQuestion() {
 ${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
     const [output, setOutput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
+    
+    // Code snapshot tracking
+    const [codeSnapshots, setCodeSnapshots] = useState<CodeSnapshot[]>([]);
+    const lastSnapshotCodeRef = useRef<string>(defaultCode.python);
+    const snapshotIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Calculate dynamic snapshot interval based on question length
+    // Shorter questions = shorter intervals (15s), longer questions = longer intervals (30s)
+    const getSnapshotInterval = useCallback(() => {
+        const baseInterval = 15000; // 15 seconds minimum
+        const maxInterval = 30000; // 30 seconds maximum
+        const qLength = questionLength || demoQ.desc.length;
+        
+        // Scale interval based on question complexity (approximated by length)
+        // Longer questions get more time between snapshots
+        const scaleFactor = Math.min(qLength / 500, 1); // Cap at 500 chars
+        return baseInterval + (maxInterval - baseInterval) * scaleFactor;
+    }, [questionLength, demoQ.desc.length]);
+
+    // Take a snapshot of current code if it has changed
+    const takeSnapshot = useCallback(() => {
+        if (code !== lastSnapshotCodeRef.current && sessionStartTime) {
+            const now = Date.now();
+            const snapshot: CodeSnapshot = {
+                code,
+                timestamp: now,
+                elapsedSeconds: Math.floor((now - sessionStartTime) / 1000),
+            };
+            setCodeSnapshots(prev => [...prev, snapshot]);
+            lastSnapshotCodeRef.current = code;
+            console.log('📸 Code snapshot taken at', snapshot.elapsedSeconds, 'seconds');
+        }
+    }, [code, sessionStartTime]);
+
+    // Start snapshot interval when session starts
+    useEffect(() => {
+        if (sessionStartTime) {
+            // Take initial snapshot
+            const initialSnapshot: CodeSnapshot = {
+                code,
+                timestamp: sessionStartTime,
+                elapsedSeconds: 0,
+            };
+            setCodeSnapshots([initialSnapshot]);
+            lastSnapshotCodeRef.current = code;
+
+            // Set up periodic snapshots
+            const interval = getSnapshotInterval();
+            console.log(`📷 Setting up code snapshots every ${interval / 1000}s`);
+            snapshotIntervalRef.current = setInterval(takeSnapshot, interval);
+
+            return () => {
+                if (snapshotIntervalRef.current) {
+                    clearInterval(snapshotIntervalRef.current);
+                }
+            };
+        }
+    }, [sessionStartTime, getSnapshotInterval, takeSnapshot]);
+
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+        getCodingData: (): CodingSessionData => {
+            // Take final snapshot before returning data
+            const finalSnapshots = [...codeSnapshots];
+            if (code !== lastSnapshotCodeRef.current && sessionStartTime) {
+                const now = Date.now();
+                finalSnapshots.push({
+                    code,
+                    timestamp: now,
+                    elapsedSeconds: Math.floor((now - sessionStartTime) / 1000),
+                });
+            }
+            
+            return {
+                questionName: demoQ.name,
+                questionDescription: demoQ.desc,
+                codeSnapshots: finalSnapshots,
+                finalCode: code,
+                codeOutput: output || undefined,
+            };
+        },
+        getCode: () => code,
+    }), [code, output, codeSnapshots, demoQ, sessionStartTime]);
 
     const handleRunCode = async () => {
         setIsRunning(true);
@@ -181,4 +277,8 @@ ${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
             </div>
         </div>
     )
-}
+});
+
+CodingQuestion.displayName = 'CodingQuestion';
+
+export default CodingQuestion;

@@ -9,14 +9,14 @@ import CueBadges from '@/components/CueBadges';
 import LiveTranscript from '@/components/LiveTranscript';
 import MetricsDisplay from '@/components/MetricsDisplay';
 import CoachTip from '@/components/CoachTip';
-import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo } from '@/lib/types';
+import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo, CodingSessionData } from '@/lib/types';
 import { captureLocalMedia, stopMediaStream } from '@/lib/livekit';
 import { createWisprFlow } from '@/lib/wispr';
 import { createOverShootAnalyzer } from '@/lib/overshoot';
 import { createToneAnalyzer } from '@/lib/toneAnalyzer';
 import { calculateScore, smoothScore, getActiveCues, getInitialMetrics } from '@/lib/scoring';
 import { saveSession, generateSessionId } from '@/lib/storage';
-import CodingQuestion from '@/components/CodingQuestion';
+import CodingQuestion, { CodingQuestionRef } from '@/components/CodingQuestion';
 
 function PracticeContent() {
   const searchParams = useSearchParams();
@@ -62,6 +62,9 @@ function PracticeContent() {
 
   // Show coding section for programming interviews
   const [showCodingSection, setShowCodingSection] = useState(false);
+
+  // Ref to access CodingQuestion component methods
+  const codingQuestionRef = useRef<CodingQuestionRef>(null);
 
   // Initialize camera on mount
   useEffect(() => {
@@ -339,6 +342,13 @@ function PracticeContent() {
     // Get enriched transcript with paralinguistic data
     const enrichedTranscript = transcript.filter((s) => s.isFinal);
 
+    // Get coding data if this is a programming interview
+    let codingData: CodingSessionData | undefined;
+    if (showCodingSection && codingQuestionRef.current) {
+      codingData = codingQuestionRef.current.getCodingData();
+      console.log('💻 Coding data collected:', codingData);
+    }
+
     // Save session to localStorage
     const session = {
       id: sessionIdRef.current,
@@ -352,6 +362,7 @@ function PracticeContent() {
       metrics,
       transcript: fullTranscript,
       enrichedTranscript,
+      codingData,
       report: null,
     };
 
@@ -359,7 +370,7 @@ function PracticeContent() {
 
     // Navigate to report page
     router.push(`/report?id=${sessionIdRef.current}`);
-  }, [transcript, mode, type, sessionContext, startTime, elapsedTime, score, metrics, router]);
+  }, [transcript, mode, type, sessionContext, startTime, elapsedTime, score, metrics, router, showCodingSection]);
 
   // Format time display
   const formatTime = (seconds: number) => {
@@ -736,7 +747,7 @@ function PracticeContent() {
       </Navbar>
 
       {/* For programming interviews */}
-      {showCodingSection && <CodingQuestion/>}
+      {showCodingSection && <CodingQuestion ref={codingQuestionRef} sessionStartTime={startTime} />}
 
       {/* Main Content */}
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -49,6 +49,7 @@ function ReportContent() {
       duration_seconds: sessionData.duration,
       transcript: sessionData.transcript,
       enrichedTranscript: sessionData.enrichedTranscript,
+      codingData: sessionData.codingData,
       metrics: sessionData.metrics,
       final_score: sessionData.finalScore,
     };
