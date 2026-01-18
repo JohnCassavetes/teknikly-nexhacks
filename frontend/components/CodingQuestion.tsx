@@ -110,7 +110,7 @@ export default function CodingQuestion() {
                         <button
                             onClick={handleRunCode}
                             disabled={isRunning}
-                            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+                            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
                         >
                             {isRunning ? 'Running...' : 'Run Code'}
                         </button>

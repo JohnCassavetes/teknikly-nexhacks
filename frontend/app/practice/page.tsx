@@ -33,7 +33,6 @@ function PracticeContent() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [skipCamera, setSkipCamera] = useState(false); // Enable camera for real analysis
-  const [cameraRequested, setCameraRequested] = useState(false);
 
   // Analysis state
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
@@ -337,7 +336,7 @@ function PracticeContent() {
         {isActive ? (
           <button
             onClick={endSession}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
           >
             End Session
           </button>
