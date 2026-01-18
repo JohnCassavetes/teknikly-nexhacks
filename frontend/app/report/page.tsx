@@ -46,6 +46,7 @@ function ReportContent() {
       mode: sessionData.mode,
       type: sessionData.type,
       context: sessionData.context,
+      interviewSetup: sessionData.interviewSetup,
       duration_seconds: sessionData.duration,
       transcript: sessionData.transcript,
       enrichedTranscript: sessionData.enrichedTranscript,
@@ -130,6 +131,22 @@ function ReportContent() {
               {formatDuration(session.duration)}
             </p>
           </div>
+
+          {/* Interview Question (if applicable) */}
+          {session.interviewSetup && (
+            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-500/30">
+              <h3 className="text-sm font-medium text-blue-400 mb-2">Question Answered:</h3>
+              <p className="text-white text-lg">{session.interviewSetup.selectedQuestion.question}</p>
+              {session.interviewSetup.selectedQuestion.context && (
+                <p className="text-gray-400 text-sm mt-2">💡 {session.interviewSetup.selectedQuestion.context}</p>
+              )}
+              {session.interviewSetup.source !== 'surprise_me' && (
+                <p className="text-gray-500 text-xs mt-3">
+                  Question generated from: {session.interviewSetup.source === 'resume' ? 'Your Resume' : 'Job Description'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Score Card */}
           <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 flex flex-col items-center">

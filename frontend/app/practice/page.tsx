@@ -9,7 +9,8 @@ import CueBadges from '@/components/CueBadges';
 import LiveTranscript from '@/components/LiveTranscript';
 import MetricsDisplay from '@/components/MetricsDisplay';
 import CoachTip from '@/components/CoachTip';
-import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo, CodingSessionData } from '@/lib/types';
+import InterviewSetupModal from '@/components/InterviewSetupModal';
+import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo, CodingSessionData, InterviewSetupData } from '@/lib/types';
 import { captureLocalMedia, stopMediaStream } from '@/lib/livekit';
 import { createWisprFlow } from '@/lib/wispr';
 import { createOverShootAnalyzer } from '@/lib/overshoot';
@@ -32,6 +33,10 @@ function PracticeContent() {
   // Context prompt state (for presentations)
   const [showContextModal, setShowContextModal] = useState(false);
   const [sessionContext, setSessionContext] = useState('');
+
+  // Interview setup state (for behavioral and technical interviews)
+  const [showInterviewSetup, setShowInterviewSetup] = useState(false);
+  const [interviewSetupData, setInterviewSetupData] = useState<InterviewSetupData | null>(null);
 
   // Pitch mode state
   const [pitchMode, setPitchMode] = useState<'own' | 'random' | null>(null);
@@ -140,6 +145,12 @@ function PracticeContent() {
       mode,
       type,
       context: sessionContext,
+      interviewSetup: interviewSetupData ? {
+        source: interviewSetupData.source,
+        resume: interviewSetupData.resume,
+        jobDescription: interviewSetupData.jobDescription,
+        selectedQuestion: interviewSetupData.selectedQuestion,
+      } : undefined,
       recent_transcript: recentTranscript,
       metrics: {
         pace_wpm: metrics.pace_wpm,
@@ -167,7 +178,7 @@ function PracticeContent() {
     } catch (error) {
       console.error('Failed to fetch coach tip:', error);
     }
-  }, [isActive, transcript, metrics, mode, type, sessionContext]);
+  }, [isActive, transcript, metrics, mode, type, sessionContext, interviewSetupData]);
 
   // Types that support context prompts
   const contextTypes = ['business', 'comedy', 'school', 'pitch'];
@@ -219,6 +230,9 @@ function PracticeContent() {
     }
   };
 
+  // Interview types that support the setup flow
+  const interviewTypesWithSetup = ['behavioral', 'technical'];
+
   // Start session
   const startSession = useCallback(() => {
     if (!stream && !skipCamera) return;
@@ -226,6 +240,12 @@ function PracticeContent() {
     // For presentation types that support context, show modal first (if not already shown)
     if (contextTypes.includes(type) && !showContextModal && sessionContext === '') {
       setShowContextModal(true);
+      return;
+    }
+
+    // For behavioral and technical interviews, show setup modal first
+    if (mode === 'interview' && interviewTypesWithSetup.includes(type) && !showInterviewSetup && !interviewSetupData) {
+      setShowInterviewSetup(true);
       return;
     }
 
@@ -313,7 +333,95 @@ function PracticeContent() {
     coachTimerRef.current = setInterval(fetchCoachTip, 5000);  // Every 5 seconds
     // Fetch first tip after 3 seconds
     setTimeout(fetchCoachTip, 3000);
-  }, [stream, skipCamera, fetchCoachTip, type, mode, sessionContext, showContextModal]);
+  }, [stream, skipCamera, fetchCoachTip, type, mode, sessionContext, showContextModal, showInterviewSetup, interviewSetupData]);
+
+  // Handle interview setup completion
+  const handleInterviewSetupComplete = (setupData: InterviewSetupData) => {
+    setInterviewSetupData(setupData);
+    setShowInterviewSetup(false);
+    // Build context from interview setup
+    const questionContext = `Question: ${setupData.selectedQuestion.question}`;
+    setSessionContext(questionContext);
+    // Now start the actual session
+    startSessionAfterSetup();
+  };
+
+  // Start session after modal setup (shared logic)
+  const startSessionAfterSetup = useCallback(() => {
+    if (mode === 'interview' && type === 'programming') setShowCodingSection(true);
+
+    setIsActive(true);
+    setStartTime(Date.now());
+    setTranscript([]);
+    setMetrics(getInitialMetrics());
+    setScore(50);
+    setCoachTip(null);
+    sessionIdRef.current = generateSessionId();
+
+    // Initialize Tone Analyzer
+    if (stream) {
+      toneAnalyzerRef.current = createToneAnalyzer();
+      toneAnalyzerRef.current.initialize(stream).then(() => {
+        console.log('🎵 Tone analyzer initialized');
+        toneAnalyzerRef.current?.start({
+          onToneUpdate: (tone) => {
+            currentToneRef.current = tone;
+            console.log('🎵 Tone update:', tone);
+          },
+        });
+      });
+    }
+
+    // Initialize Wispr
+    wisprRef.current = createWisprFlow();
+    wisprRef.current.start({
+      onTranscript: (segment) => {
+        const segmentWithTone = {
+          ...segment,
+          tone: { ...currentToneRef.current },
+        };
+        
+        setTranscript((prev) => {
+          if (segmentWithTone.isFinal) {
+            const filtered = prev.filter((s) => s.isFinal);
+            return [...filtered, segmentWithTone];
+          }
+          const finals = prev.filter((s) => s.isFinal);
+          return [...finals, segmentWithTone];
+        });
+      },
+      onMetricsUpdate: (speechMetrics) => {
+        setMetrics((prev) => ({
+          ...prev,
+          pace_wpm: speechMetrics.pace_wpm,
+          filler_rate_per_min: speechMetrics.filler_rate_per_min,
+          pause_count: speechMetrics.pause_count,
+          max_pause_ms: speechMetrics.max_pause_ms,
+        }));
+      },
+    });
+
+    // Initialize OverShoot
+    overshootRef.current = createOverShootAnalyzer();
+    const video = document.querySelector('video');
+    if (video) {
+      overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
+        overshootRef.current?.start({
+          onSignals: (signals) => {
+            setMetrics((prev) => ({
+              ...prev,
+              eye_contact_pct: signals.eye_contact_pct,
+              motion_energy: signals.motion_energy,
+            }));
+          },
+        });
+      });
+    }
+
+    // Start periodic coaching tips
+    coachTimerRef.current = setInterval(fetchCoachTip, 5000);
+    setTimeout(fetchCoachTip, 3000);
+  }, [stream, mode, type, fetchCoachTip]);
 
   // End session
   const endSession = useCallback(async () => {
@@ -355,6 +463,7 @@ function PracticeContent() {
       mode,
       type,
       context: sessionContext,
+      interviewSetup: interviewSetupData || undefined,
       startTime: startTime || Date.now(),
       endTime: Date.now(),
       duration: elapsedTime,
@@ -370,7 +479,7 @@ function PracticeContent() {
 
     // Navigate to report page
     router.push(`/report?id=${sessionIdRef.current}`);
-  }, [transcript, mode, type, sessionContext, startTime, elapsedTime, score, metrics, router, showCodingSection]);
+  }, [transcript, mode, type, sessionContext, interviewSetupData, startTime, elapsedTime, score, metrics, router, showCodingSection]);
 
   // Format time display
   const formatTime = (seconds: number) => {
@@ -488,6 +597,15 @@ function PracticeContent() {
 
   return (
     <main className="min-h-screen flex flex-col">
+      {/* Interview Setup Modal for Behavioral and Technical Interviews */}
+      {showInterviewSetup && (type === 'behavioral' || type === 'technical') && (
+        <InterviewSetupModal
+          type={type as 'behavioral' | 'technical'}
+          onComplete={handleInterviewSetupComplete}
+          onCancel={() => setShowInterviewSetup(false)}
+        />
+      )}
+
       {/* Context Modal for Presentations */}
       {showContextModal && type !== 'pitch' && (() => {
         const modalContent = getContextModalContent();
@@ -753,6 +871,17 @@ function PracticeContent() {
       <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Video */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Interview Question Display */}
+          {interviewSetupData && (
+            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4 border border-blue-500/30">
+              <h3 className="text-sm font-medium text-blue-400 mb-2">Your Question:</h3>
+              <p className="text-white text-lg">{interviewSetupData.selectedQuestion.question}</p>
+              {interviewSetupData.selectedQuestion.context && (
+                <p className="text-gray-400 text-sm mt-2">💡 {interviewSetupData.selectedQuestion.context}</p>
+              )}
+            </div>
+          )}
+
           <VideoPanel stream={stream} onVideoElement={handleVideoElement} />
 
           {/* Coaching cues overlay */}

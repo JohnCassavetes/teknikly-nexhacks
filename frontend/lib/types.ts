@@ -53,6 +53,7 @@ export interface Session {
   mode: Mode;
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   context?: string; // User-provided context about what they're preparing for
+  interviewSetup?: InterviewSetupData; // Interview-specific setup data (resume, job desc, question)
   startTime: number;
   endTime: number;
   duration: number;
@@ -97,6 +98,29 @@ export interface CodeSnapshot {
   code: string;
   timestamp: number; // Unix timestamp
   elapsedSeconds: number; // Seconds since session start
+}
+
+// Interview customization types
+export type InterviewQuestionSource = 'resume' | 'job_description' | 'surprise_me';
+
+export interface InterviewSetupData {
+  source: InterviewQuestionSource;
+  resume?: string; // Parsed resume text
+  jobDescription?: string; // Job description text
+  selectedQuestion: InterviewQuestion;
+  excludedQuestions: string[]; // Questions user rejected (don't regenerate)
+}
+
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  context?: string; // Why this question was generated (e.g., "Based on your experience with React")
+}
+
+export interface GeneratedQuestions {
+  questions: InterviewQuestion[];
+  source: InterviewQuestionSource;
+  resumeHighlights?: string[]; // Key points from resume that can be referenced in feedback
 }
 
 // Coding session data for technical interviews
