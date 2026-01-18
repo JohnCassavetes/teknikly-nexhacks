@@ -33,9 +33,6 @@ export default function ModeTypePage() {
   return (
     <main className="min-h-screen flex flex-col">
       <Navbar>
-        <a href="/" className="text-gray-400 hover:text-white transition-colors">
-          Back to Home
-        </a>
       </Navbar>
 
       <section className="flex-1 flex flex-col items-center justify-center p-8">
@@ -63,17 +60,26 @@ export default function ModeTypePage() {
             ))}
           </div>
 
-          <button
-            onClick={handleStart}
-            disabled={selectedType === ''}
-            className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
-              selectedType !== ''
-                ? 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white'
-                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Start practicing
-          </button>
+          <div className="grid grid-cols-2 gap-4">
+            <a href="/" className="px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer
+              text-white text-center border border-2 border-blue-500 hover:bg-gray-900/60
+            ">
+              Back to Home
+            </a>
+
+            <button
+              onClick={handleStart}
+              disabled={selectedType === ''}
+              className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
+                selectedType !== ''
+                  ? 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white'
+                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Start practicing
+            </button>
+
+          </div>
         </div>
       </section>
     </main>

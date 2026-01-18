@@ -68,7 +68,7 @@ ${demoQ.inputs.map((input) => `print(solution(${input.input}))`).join('\n')}`);
     
     // Code snapshot tracking
     const [codeSnapshots, setCodeSnapshots] = useState<CodeSnapshot[]>([]);
-    const lastSnapshotCodeRef = useRef<string>(defaultCode.python);
+    const lastSnapshotCodeRef = useRef<string>(code);
     const snapshotIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Calculate dynamic snapshot interval based on question length
