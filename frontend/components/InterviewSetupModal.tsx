@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import pdfToText from 'react-pdftotext';
 import { InterviewQuestionSource, InterviewQuestion, InterviewSetupData } from '@/lib/types';
 import { getExcludedQuestions, addExcludedQuestions } from '@/lib/storage';
 
@@ -28,23 +29,25 @@ export default function InterviewSetupModal({ type, onComplete, onCancel }: Inte
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Support txt and pdf (text extraction for pdf is basic)
-    if (file.type === 'text/plain') {
-      const text = await file.text();
-      setResume(text);
-    } else if (file.type === 'application/pdf') {
-      // For PDF, we'll just read it as text (basic extraction)
-      // In production, you'd want to use a proper PDF parser
-      const text = await file.text();
-      // Try to extract readable text from PDF
-      const cleanText = text.replace(/[^\x20-\x7E\n]/g, ' ').replace(/\s+/g, ' ').trim();
-      if (cleanText.length > 100) {
-        setResume(cleanText);
+    setLoading(true);
+    setError('');
+
+    try {
+      if (file.type === 'text/plain') {
+        const text = await file.text();
+        setResume(text);
+      } else if (file.type === 'application/pdf') {
+        // Extract text from PDF using react-pdftotext
+        const text = await pdfToText(file);
+        setResume(text);
       } else {
-        setError('Could not extract text from PDF. Please paste your resume text instead.');
+        setError('Please upload a .txt or .pdf file');
       }
-    } else {
-      setError('Please upload a .txt or .pdf file');
+    } catch (err) {
+      console.error('File parsing error:', err);
+      setError('Failed to extract text from PDF. Please try another file or paste your resume text directly.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
