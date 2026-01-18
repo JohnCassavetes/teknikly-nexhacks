@@ -10,6 +10,7 @@ import LiveTranscript from '@/components/LiveTranscript';
 import MetricsDisplay from '@/components/MetricsDisplay';
 import CoachTip from '@/components/CoachTip';
 import InterviewSetupModal from '@/components/InterviewSetupModal';
+import PitchItemBar from '@/components/PitchItemBar';
 import { Mode, Metrics, TranscriptSegment, CoachTip as CoachTipType, ToneInfo, CodingSessionData, InterviewSetupData } from '@/lib/types';
 import { captureLocalMedia, stopMediaStream } from '@/lib/livekit';
 import { createWisprFlow } from '@/lib/wispr';
@@ -874,6 +875,11 @@ function PracticeContent() {
                 <p className="text-gray-400 text-sm mt-2">💡 {interviewSetupData.selectedQuestion.context}</p>
               )}
             </div>
+          )}
+
+          {/* Pitch Item Display */}
+          {mode === 'presentation' && type === 'pitch' && (
+            <PitchItemBar product={randomProduct} context={sessionContext} />
           )}
 
           <VideoPanel stream={stream} onVideoElement={handleVideoElement} />
