@@ -50,7 +50,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
             : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer '
         }`}
       >
-        <div className="text-4xl mb-3">🎤</div>
+        {/* <div className="text-4xl mb-3">🎤</div> */}
         <h3 className="text-xl font-semibold text-white mb-2">Presentation</h3>
         <p className="text-gray-400 text-sm">Practice your pitch, speech, or demo</p>
       </button>
@@ -65,7 +65,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
               : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer '
         }`}
       >
-        <div className="text-4xl mb-3">💼</div>
+        {/* <div className="text-4xl mb-3">💼</div> */}
         <h3 className="text-xl font-semibold text-white mb-2">Interview</h3>
         <p className="text-gray-400 text-sm">Prepare for job interviews</p>
       </button>

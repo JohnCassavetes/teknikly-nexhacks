@@ -56,9 +56,10 @@ export default function ModeTypePage() {
                 }`}
               >
                 <h3 className="text-xl font-semibold text-white mb-2">
-                  {type.label}
+                    {type.label}
                 </h3>
                 <p className="text-gray-400 text-sm">{type.description}</p>
+                
               </button>
             ))}
           </div>

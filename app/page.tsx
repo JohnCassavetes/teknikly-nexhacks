@@ -9,16 +9,16 @@ import { Mode } from '@/lib/types';
 // Presentation types
 export const presentationTypes = [
   { id: 'pitch', label: 'Sales Pitch', description: 'Investor or sales pitch' },
-  { id: 'business', label: 'Business Presentation', description: 'Showcase your product or service' },
+  { id: 'business', label: 'Business', description: 'Showcase your product/service' },
   { id: 'comedy', label: 'Stand-up Comedy', description: 'Make your audience laugh' },
   { id: 'school', label: 'School Project', description: 'School project presentation' },
 ] as const;
 
 // Interview types
 export const interviewTypes = [
-  { id: 'programming', label: 'Coding Interview', description: 'Coding or technical assessment' },
-  { id: 'behavioral', label: 'Behavioral Interview', description: 'Culture fit and experience' },
-  { id: 'technical', label: 'Technical Interview', description: 'Verbal technical questions' },
+  { id: 'programming', label: 'Coding', description: 'Coding or technical assessment' },
+  { id: 'behavioral', label: 'Behavioral', description: 'Culture fit and experience' },
+  { id: 'technical', label: 'Technical', description: 'Verbal technical questions' },
 ] as const;
 
 export default function Home() {

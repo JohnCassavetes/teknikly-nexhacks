@@ -56,7 +56,8 @@ interface CodingQuestionProps {
 
 const CodingQuestion = forwardRef<CodingQuestionRef, CodingQuestionProps>(
     ({ sessionStartTime, questionLength }, ref) => {
-    const demoQ = codingQuestions[0];
+
+    const demoQ = codingQuestions[Math.floor(Math.random() * codingQuestions.length)];
     const [language, setLanguage] = useState<Language>('python');
     const [code, setCode] = useState(`def solution(${demoQ.params}):
     # Write your code here
