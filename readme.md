@@ -12,9 +12,9 @@ This is written so Claude can **implement without guessing**.
 ---
 
 ```md
-# TalkCoach — Hackathon MVP
+# EasySpeech — Hackathon MVP
 
-**TalkCoach** is a real-time communication coach for public speaking and interpersonal scenarios (interviews, presentations, stand-up).
+**EasySpeech** is a real-time communication coach for public speaking and interpersonal scenarios (interviews, presentations, stand-up).
 
 It analyzes **speech + body language in real time**, gives **live coaching cues and scoring**, and produces a **post-session improvement report**.
 

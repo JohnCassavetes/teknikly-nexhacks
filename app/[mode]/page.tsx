@@ -67,11 +67,10 @@ export default function ModeTypePage() {
               <button
                 key={type.id}
                 onClick={() => setSelectedType(type.id)}
-                className={`p-6 rounded-xl border-2 text-left hover:-translate-y-1 transition duration-200 flex flex-col gap-3 ${
-                  selectedType === type.id
+                className={`p-6 rounded-xl border-2 text-left hover:-translate-y-1 transition duration-200 flex flex-col gap-3 ${selectedType === type.id
                     ? getColours(type.id)
                     : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer'
-                }`}
+                  }`}
               >
                 {type.icon}
                 <div>
@@ -80,8 +79,8 @@ export default function ModeTypePage() {
                   </h3>
                   <p className="text-gray-400 text-sm">{type.description}</p>
                 </div>
-                
-                
+
+
               </button>
             ))}
           </div>
@@ -96,11 +95,10 @@ export default function ModeTypePage() {
             <button
               onClick={handleStart}
               disabled={selectedType === ''}
-              className={`px-8 py-3 rounded-xl text-lg font-semibold transition-all cursor-pointer ${
-                selectedType !== ''
+              className={`px-8 py-3 rounded-xl text-lg font-semibold transition-all cursor-pointer ${selectedType !== ''
                   ? 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white'
                   : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              }`}
+                }`}
             >
               Start practicing
             </button>
