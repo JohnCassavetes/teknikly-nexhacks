@@ -107,12 +107,6 @@ function ReportContent() {
       {/* Header */}
       <Navbar>
         <a
-          href="/history"
-          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          View History
-        </a>
-        <a
           href="/"
           className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
         >
