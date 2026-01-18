@@ -51,7 +51,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
         }`}
       >
         {/* <div className="text-4xl mb-3">🎤</div> */}
-        <h3 className="text-xl font-semibold text-white mb-2">Presentation</h3>
+        <h3 className="text-xl font-semibold text-white mb-2">Presentations</h3>
         <p className="text-gray-400 text-sm">Practice your pitch, speech, or demo</p>
       </button>
 
@@ -66,7 +66,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
         }`}
       >
         {/* <div className="text-4xl mb-3">💼</div> */}
-        <h3 className="text-xl font-semibold text-white mb-2">Interview</h3>
+        <h3 className="text-xl font-semibold text-white mb-2">Interviews</h3>
         <p className="text-gray-400 text-sm">Prepare for job interviews</p>
       </button>
     </div>
