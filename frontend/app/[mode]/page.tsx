@@ -35,18 +35,18 @@ export default function ModeTypePage() {
       <Navbar>
       </Navbar>
 
-      <section className="flex-1 flex flex-col items-center justify-center p-8">
+      <section className="flex-1 flex flex-col items-center justify-center p-1">
         <div className="flex flex-col gap-4 justify-center items-center w-full max-w-3xl mb-8">
           <h3 className="text-2xl text-gray-400 text-center mb-6">
             Select your {modeLabel.toLowerCase()} type
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-5">
             {types.map((type) => (
               <button
                 key={type.id}
                 onClick={() => setSelectedType(type.id)}
-                className={`p-6 rounded-xl border-2 text-left transition-all ${
+                className={`p-6 rounded-xl border-2 text-left transition duration-200 ${
                   selectedType === type.id
                     ? 'border-blue-500 bg-blue-500/10'
                     : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer'

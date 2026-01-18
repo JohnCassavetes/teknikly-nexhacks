@@ -95,12 +95,6 @@ function PracticeContent() {
     };
   }, [skipCamera]);
 
-  // useEffect(() => {
-  //   if (mode === 'interview' && type === 'programming') {
-  //     setShowCodingSection(true);
-  //   }
-  // }, [isActive])
-
   // Timer for elapsed time
   useEffect(() => {
     if (isActive && startTime) {
@@ -637,7 +631,7 @@ function PracticeContent() {
                 </button>
                 <button
                   onClick={handleContextSubmit}
-                  className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white"
                 >
                   {sessionContext.trim() ? 'Start Session' : 'Skip & Start'}
                 </button>
@@ -724,7 +718,7 @@ function PracticeContent() {
                   </button>
                   <button
                     onClick={handleContextSubmit}
-                    className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                    className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white"
                   >
                     {sessionContext.trim() ? 'Start Session' : 'Skip & Start'}
                   </button>
@@ -857,7 +851,7 @@ function PracticeContent() {
           <button
             onClick={startSession}
             disabled={!stream && !skipCamera}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Start Session
           </button>

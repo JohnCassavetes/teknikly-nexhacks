@@ -7,8 +7,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TalkCoach - Real-time Communication Coach",
-  description: "Practice public speaking and get real-time AI coaching feedback",
+  title: "Teknikly",
+  description: "Practice your speaking skills",
 };
 
 export default function RootLayout({
