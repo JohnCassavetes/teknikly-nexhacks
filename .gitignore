@@ -21,12 +21,9 @@ node_modules
 /coverage
 
 # next.js
-# ignore Next build artifacts at root and in frontend package
+# ignore Next build artifacts
 /.next/
 /out/
-frontend/.next
-frontend/out
-frontend/node_modules
 
 # production
 /build
