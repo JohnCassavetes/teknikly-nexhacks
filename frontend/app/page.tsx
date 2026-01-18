@@ -33,14 +33,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col">
-      {/* Header */}
       <Navbar>
-        <a
-          href="/history"
-          className="text-gray-400 hover:text-white transition-colors"
-        >
-          Session History
-        </a>
       </Navbar>
 
       {/* Hero Section */}

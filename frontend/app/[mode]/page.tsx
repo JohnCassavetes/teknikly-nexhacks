@@ -62,7 +62,7 @@ export default function ModeTypePage() {
 
           <div className="grid grid-cols-2 gap-4">
             <a href="/" className="px-8 py-4 rounded-xl text-lg font-semibold transition-all cursor-pointer
-              text-white text-center border border-2 border-blue-500 hover:bg-gray-900/60
+              text-white text-center border border-2 border-blue-500 bg-blue-500/10 hover:bg-blue-500/20
             ">
               Back to Home
             </a>
