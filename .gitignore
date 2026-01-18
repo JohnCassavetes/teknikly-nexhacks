@@ -7,7 +7,8 @@
 venv
 __pycache__/
 # dependencies
-/node_modules
+# ignore node_modules everywhere (monorepo)
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -20,8 +21,12 @@ __pycache__/
 /coverage
 
 # next.js
+# ignore Next build artifacts at root and in frontend package
 /.next/
 /out/
+frontend/.next
+frontend/out
+frontend/node_modules
 
 # production
 /build
