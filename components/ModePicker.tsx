@@ -1,7 +1,7 @@
 'use client';
 
 import { Mode } from '@/lib/types';
-import { MessageSquare, MessagesSquare, Presentation } from 'lucide-react';
+import { MessageSquare, MessagesSquare, Presentation, Mic, Briefcase } from 'lucide-react';
 
 interface ModePickerProps {
   selectedMode: Mode | null;
@@ -38,7 +38,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
             : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer '
           }`}
       >
-        <MessageSquare />
+        <Briefcase />
 
         <div>
           <h3 className="text-xl font-semibold text-white mb-2">Interviews</h3>
@@ -56,7 +56,7 @@ export default function ModePicker({ selectedMode, onSelect }: ModePickerProps) 
             : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 cursor-pointer '
           }`}
       >
-        <div className="text-4xl">🎙️</div>
+        <Mic/>
 
         <div>
           <h3 className="text-xl font-semibold text-white mb-2">Live</h3>

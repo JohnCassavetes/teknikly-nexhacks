@@ -68,6 +68,13 @@ export default function Navbar({ children, className = '' }: NavbarProps) {
             </div>
           </div>
 
+          <a 
+            href={`/live`}
+            className="text-gray-300 hover:text-white transition-colors py-2"
+          >
+            Live
+          </a>
+
           {children && (
             <>
               {children}

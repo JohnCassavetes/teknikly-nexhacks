@@ -18,7 +18,7 @@ export const presentationTypes = [
 
 // Interview types
 export const interviewTypes = [
-  { id: 'programming', label: 'Coding', description: 'Coding or technical assessment', icon: <CodeXml/> },
+  { id: 'programming', label: 'Coding', description: 'Programming assessment', icon: <CodeXml/> },
   { id: 'behavioral', label: 'Behavioural', description: 'Culture fit and experience', icon: <UserRound/> },
   { id: 'technical', label: 'Technical', description: 'Verbal technical questions', icon: <Cpu/> },
 ] as const;
@@ -80,9 +80,9 @@ export default function Home() {
         </section>
 
         
-      </main>
+      {/* </main>
 
-      <main className="min-h-screen flex flex-col bg-gradient-to-b from-blue-950 via-blue-950 to-gray-900">
+      <main className="min-h-screen flex flex-col bg-gradient-to-b from-blue-950 via-blue-950 to-gray-900"> */}
 
       </main>
     </div>
