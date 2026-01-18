@@ -75,8 +75,13 @@ function ReportContent() {
         console.log('📝 REPORT API Response:', reportData);
         setReport(reportData);
 
-        // Save report to session
-        const updatedSession = { ...sessionData, report: reportData };
+        // Save report to session AND extract scores to session level
+        const updatedSession = { 
+          ...sessionData, 
+          report: reportData,
+          presentationScore: reportData.presentationScore,
+          contentScore: reportData.contentScore,
+        };
         saveSession(updatedSession);
         setSession(updatedSession);
 
@@ -172,41 +177,38 @@ function ReportContent() {
               </div>
             )}
 
-            {/* Score Card */}
-            <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 flex flex-col items-center">
-              <ScoreGauge score={session.finalScore} size="lg" />
-            <h2 className="text-xl font-semibold mt-4">
-              {session.finalScore >= 80
-                ? 'Excellent Performance!'
-                : session.finalScore >= 60
-                ? 'Good Job!'
-                : 'Keep Practicing!'}
-            </h2>
-          </div>
-
-          {/* Presentation and Content Scores */}
-          {(session.presentationScore !== undefined || session.contentScore !== undefined) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {session.presentationScore !== undefined && (
+            {/* Score Display - Different layouts for interview vs presentation */}
+            {session.mode === 'interview' && session.contentScore !== undefined ? (
+              // Interview mode: Show both Presentation and Content scores side by side
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 rounded-xl p-6 border border-blue-500/30 flex flex-col items-center">
                   <h3 className="text-lg font-semibold mb-4 text-blue-400">Presentation Score</h3>
-                  <ScoreGauge score={session.presentationScore} size="md" />
+                  <ScoreGauge score={session.presentationScore || session.finalScore} size="lg" />
                   <p className="text-gray-300 text-sm mt-4 text-center">
-                    How you delivered: pace, energy, eye contact, filler words, and pauses
+                    How you delivered: pace, confidence, eye contact, energy, and minimal filler words
                   </p>
                 </div>
-              )}
-              {session.contentScore !== undefined && (
                 <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30 flex flex-col items-center">
                   <h3 className="text-lg font-semibold mb-4 text-purple-400">Content Score</h3>
-                  <ScoreGauge score={session.contentScore} size="md" />
+                  <ScoreGauge score={session.contentScore} size="lg" />
                   <p className="text-gray-300 text-sm mt-4 text-center">
-                    How well you aligned your answer with the question and delivered accurate content
+                    How well you answered the question: relevance, completeness, examples, and alignment with requirements
                   </p>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              // Presentation mode or interview without content score: Show single overall score
+              <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 flex flex-col items-center">
+                <ScoreGauge score={session.finalScore} size="lg" />
+                <h2 className="text-xl font-semibold mt-4">
+                  {session.finalScore >= 80
+                    ? 'Excellent Performance!'
+                    : session.finalScore >= 60
+                    ? 'Good Job!'
+                    : 'Keep Practicing!'}
+                </h2>
+              </div>
+            )}
 
           {loading ? (
             <div className="bg-gray-900/50 rounded-xl p-8 border border-gray-800 text-center">

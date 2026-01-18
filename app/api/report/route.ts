@@ -182,6 +182,38 @@ Respond with JSON only:
   "next_goal": "One specific, measurable goal for the next session"
 }`;
 
+const INTERVIEW_SYSTEM_PROMPT = `You are an expert interview coach providing a post-session feedback report.
+
+Analyze the interview practice session and provide constructive, actionable feedback.
+
+The transcript may include paralinguistic annotations that indicate HOW something was said, not just what was said:
+- [PAUSE Xs] = A pause of X seconds before speaking
+- [FILLER: word] = A filler word like "um", "uh", "like"
+- [quiet] = Spoke softly/low volume
+- [loud] = Spoke with high volume/projection
+- [low-energy] = Low vocal energy, may sound monotone or tired
+- [high-energy] = High vocal energy, enthusiastic delivery
+- [rising-pitch] = Voice pitch went up (can indicate uncertainty or questions)
+- [falling-pitch] = Voice pitch went down (indicates confident statements)
+- [fast-pace] = Speaking quickly in this segment
+- [slow-pace] = Speaking slowly in this segment
+- [hesitant] = Detected hesitation patterns
+
+Use these annotations to give more specific feedback about delivery, not just content.
+
+IMPORTANT: For interview questions, evaluate TWO separate aspects:
+1. PRESENTATION (delivery): How well they spoke - pace, confidence, eye contact, energy, minimal fillers
+2. CONTENT (answer quality): How well they answered the question - relevance, completeness, examples, alignment with job/resume
+
+Respond with JSON only:
+{
+  "overall_summary": "2-3 sentence summary of performance",
+  "strengths": ["strength 1", "strength 2"],
+  "improvements": ["specific improvement 1", "specific improvement 2", "specific improvement 3"],
+  "next_goal": "One specific, measurable goal for the next session",
+  "contentScore": 0-100 (Rate the ANSWER QUALITY: relevance to question, completeness, use of specific examples, alignment with resume/job description if provided. This is separate from how they delivered it.)
+}`;
+
 // Sub-category specific prompt additions
 const TYPE_PROMPTS: Record<string, string> = {
   // Presentation sub-categories
@@ -220,7 +252,9 @@ Evaluate:
 The code evolution shows how their solution developed over time - use this to assess if they communicated their iterative process.
 DO NOT focus on fixing their code or providing the "correct" solution.
 DO provide advice on how to better communicate their problem-solving approach.
-Frame feedback in terms of communication - "explaining your approach", "thinking out loud", "articulating complexity", "narrating your debugging".`,
+Frame feedback in terms of communication - "explaining your approach", "thinking out loud", "articulating complexity", "narrating your debugging".
+
+For contentScore: Rate how well they EXPLAINED their solution (0-100), not how correct the code is. High scores = clear explanations, verbal walkthroughs, discussed complexity. Low scores = silent coding, unclear reasoning.`,
 
   programming: `You are providing feedback as a technical coding interview coach.
 IMPORTANT: Focus PRIMARILY on how well the candidate COMMUNICATED and EXPLAINED their coding process, NOT on the correctness of their code.
@@ -250,26 +284,33 @@ DO:
 - Highlight good examples of "thinking out loud" from their session
 - Give advice on how to communicate while coding under pressure
 
-Frame all feedback in terms of interview communication - "explaining your approach", "verbalizing your thought process", "communicating trade-offs".`,
+Frame all feedback in terms of interview communication - "explaining your approach", "verbalizing your thought process", "communicating trade-offs".
+
+For contentScore: Rate how well they COMMUNICATED their coding approach (0-100). High scores = explained approach clearly, thought out loud, discussed complexity. Low scores = silent coding, unclear reasoning.`,
 
   behavioral: `You are providing feedback as a behavioral interview coach.
 Focus on storytelling ability, authenticity, and demonstrating cultural fit.
 Emphasize the STAR method effectiveness, genuine responses, and connecting with interviewers.
-Frame feedback in terms of interview success - "story structure", "authenticity", "rapport building".`,
+Frame feedback in terms of interview success - "story structure", "authenticity", "rapport building".
+
+For contentScore: Rate how well they answered using STAR method (0-100). High scores = clear Situation/Task/Action/Result, relevant examples, specific details. Low scores = vague answers, missing STAR components, no concrete examples.`,
 
   'case': `You are providing feedback as a technical interview coach.
 Focus on logical flow of explanations, confident problem-solving delivery, and structured thinking.
 Emphasize how well they articulated their thought process.
-Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".`,
+Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".
+
+For contentScore: Rate the logical structure and completeness of their answer (0-100). High scores = clear framework, logical flow, covered key points. Low scores = disorganized, missed important aspects, unclear logic.`,
 };
 
-function getSystemPrompt(type?: string, context?: string, interviewSetup?: InterviewSetupData): string {
-  let prompt = BASE_SYSTEM_PROMPT;
+function getSystemPrompt(mode: 'interview' | 'presentation', type?: string, context?: string, interviewSetup?: InterviewSetupData): string {
+  // Use INTERVIEW_SYSTEM_PROMPT for interview mode to get contentScore
+  let prompt = mode === 'interview' ? INTERVIEW_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
   
   if (type && TYPE_PROMPTS[type]) {
     prompt = `${TYPE_PROMPTS[type]}
 
-${BASE_SYSTEM_PROMPT}`;
+${prompt}`;
   }
   
   // Add interview-specific context for personalized feedback
@@ -383,7 +424,7 @@ Annotated Transcript (with delivery markers):
 
 ${codingData ? 'Focus on how well they communicated their coding thought process, NOT on fixing their implementation.' : 'Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.'}`;
 
-    const systemPrompt = getSystemPrompt(type, context, interviewSetup);
+    const systemPrompt = getSystemPrompt(mode, type, context, interviewSetup);
 
     // Log the prompts being sent to the AI
     console.log('=== REPORT API - Prompt Details ===');
@@ -415,7 +456,7 @@ ${codingData ? 'Focus on how well they communicated their coding thought process
 
     if (!response.ok) {
       console.error('OpenRouter error:', await response.text());
-      const defaultReport = getDefaultReport(metrics, final_score, !!codingData);
+      const defaultReport = getDefaultReport(metrics, final_score, !!codingData, mode);
       return NextResponse.json(defaultReport);
     }
 
@@ -428,31 +469,46 @@ ${codingData ? 'Focus on how well they communicated their coding thought process
       // Calculate presentation score from metrics
       const presentationScore = calculatePresentationScore(metrics);
       
-      // Extract or estimate content score from the report
-      // If contentScore is explicitly provided in response, use it
-      // Otherwise, derive it from the overall_summary or final_score
+      // For interview mode, use AI-provided contentScore if available
+      // For presentation mode, content score is not separate from delivery
       let contentScore = parsed.contentScore;
-      if (!contentScore) {
-        // Estimate content score: start with final_score, adjust based on report tone
-        // A full report with good feedback suggests the candidate answered well
-        const hasStrongFeedback = parsed.strengths && parsed.strengths.length > 0;
-        contentScore = hasStrongFeedback ? Math.min(final_score + 5, 100) : final_score;
-      }
       
-      return NextResponse.json({
-        ...parsed,
-        presentationScore,
-        contentScore: Math.round(contentScore),
-      });
+      if (mode === 'interview') {
+        if (!contentScore || contentScore === 0) {
+          // Fallback: estimate from final_score and feedback quality
+          const hasStrongFeedback = parsed.strengths && parsed.strengths.length > 0;
+          contentScore = hasStrongFeedback ? Math.min(final_score + 5, 100) : final_score;
+        }
+        
+        return NextResponse.json({
+          ...parsed,
+          presentationScore,
+          contentScore: Math.round(contentScore),
+        });
+      } else {
+        // Presentation mode - no separate content score
+        return NextResponse.json({
+          ...parsed,
+          presentationScore,
+        });
+      }
     } catch {
       // Return default if parsing fails
-      const defaultReport = getDefaultReport(metrics, final_score, !!codingData);
+      const defaultReport = getDefaultReport(metrics, final_score, !!codingData, mode);
       const presentationScore = calculatePresentationScore(metrics);
-      return NextResponse.json({
-        ...defaultReport,
-        presentationScore,
-        contentScore: final_score,
-      });
+      
+      if (mode === 'interview') {
+        return NextResponse.json({
+          ...defaultReport,
+          presentationScore,
+          contentScore: final_score,
+        });
+      } else {
+        return NextResponse.json({
+          ...defaultReport,
+          presentationScore,
+        });
+      }
     }
   } catch (error) {
     console.error('Report API error:', error);
@@ -471,14 +527,15 @@ ${codingData ? 'Focus on how well they communicated their coding thought process
 function getDefaultReport(
   metrics: ReportRequest['metrics'],
   score: number,
-  isCodingInterview: boolean = false
+  isCodingInterview: boolean = false,
+  mode: 'interview' | 'presentation' = 'presentation'
 ): {
   overall_summary: string;
   strengths: string[];
   improvements: string[];
   next_goal: string;
   presentationScore: number;
-  contentScore: number;
+  contentScore?: number;
 } {
   const strengths: string[] = [];
   const improvements: string[] = [];
@@ -522,7 +579,7 @@ function getDefaultReport(
       improvements: improvements.slice(0, 3),
       next_goal: 'Next session: Practice explaining your approach for 30 seconds BEFORE you start writing any code.',
       presentationScore,
-      contentScore: score,
+      ...(mode === 'interview' && { contentScore: score }),
     };
   }
 
@@ -579,6 +636,6 @@ function getDefaultReport(
     improvements: improvements.slice(0, 3),
     next_goal: `Next session: Aim for ${metrics.filler_rate_per_min > 2 ? 'fewer than 2 filler words per minute' : metrics.eye_contact_pct < 0.7 ? 'at least 70% eye contact' : 'maintaining a pace of 140-160 WPM'}.`,
     presentationScore,
-    contentScore: score,
+    ...(mode === 'interview' && { contentScore: score }),
   };
 }
