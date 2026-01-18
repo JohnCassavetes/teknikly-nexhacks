@@ -29,6 +29,16 @@ function PracticeContent() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // Context prompt state (for presentations)
+  const [showContextModal, setShowContextModal] = useState(false);
+  const [sessionContext, setSessionContext] = useState('');
+
+  // Pitch mode state
+  const [pitchMode, setPitchMode] = useState<'own' | 'random' | null>(null);
+  const [randomCategory, setRandomCategory] = useState('');
+  const [randomProduct, setRandomProduct] = useState<{ product: string; description: string; key_features: string[] } | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(false);
+
   // Media state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -126,6 +136,7 @@ function PracticeContent() {
     const requestBody = {
       mode,
       type,
+      context: sessionContext,
       recent_transcript: recentTranscript,
       metrics: {
         pace_wpm: metrics.pace_wpm,
@@ -153,11 +164,67 @@ function PracticeContent() {
     } catch (error) {
       console.error('Failed to fetch coach tip:', error);
     }
-  }, [isActive, transcript, metrics, mode, type]);
+  }, [isActive, transcript, metrics, mode, type, sessionContext]);
+
+  // Types that support context prompts
+  const contextTypes = ['business', 'comedy', 'school', 'pitch'];
+
+  // Fetch random product for pitch mode
+  const fetchRandomProduct = async (category?: string) => {
+    setLoadingProduct(true);
+    try {
+      const response = await fetch('/api/random-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: category || '' }),
+      });
+      if (response.ok) {
+        const product = await response.json();
+        setRandomProduct(product);
+        // Set context to the product info
+        setSessionContext(`Selling: ${product.product} - ${product.description}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch random product:', error);
+    } finally {
+      setLoadingProduct(false);
+    }
+  };
+
+  // Get modal content based on presentation type
+  const getContextModalContent = () => {
+    switch (type) {
+      case 'comedy':
+        return {
+          title: 'Tell us about your set',
+          description: 'Help us give you more relevant coaching by describing your comedy performance, or skip to get general feedback.',
+          placeholder: 'e.g., 10-minute open mic set for a college crowd, observational comedy about dating, dark humor for a late-night club audience...'
+        };
+      case 'school':
+        return {
+          title: 'Tell us about your presentation',
+          description: 'Help us give you more relevant coaching by describing your school presentation, or skip to get general feedback.',
+          placeholder: 'e.g., 5th grade science fair project on volcanoes, high school history presentation on WWII, college thesis defense in computer science...'
+        };
+      case 'business':
+      default:
+        return {
+          title: 'Tell us about your presentation',
+          description: 'Help us give you more relevant coaching by describing what you\'re preparing for, or skip to get general feedback.',
+          placeholder: 'e.g., Quarterly sales review for the leadership team, product launch pitch to investors, team project update...'
+        };
+    }
+  };
 
   // Start session
   const startSession = useCallback(() => {
     if (!stream && !skipCamera) return;
+
+    // For presentation types that support context, show modal first (if not already shown)
+    if (contextTypes.includes(type) && !showContextModal && sessionContext === '') {
+      setShowContextModal(true);
+      return;
+    }
 
     if (mode === 'interview' && type === 'programming') setShowCodingSection(true);
 
@@ -243,7 +310,7 @@ function PracticeContent() {
     coachTimerRef.current = setInterval(fetchCoachTip, 5000);  // Every 5 seconds
     // Fetch first tip after 3 seconds
     setTimeout(fetchCoachTip, 3000);
-  }, [stream, skipCamera, fetchCoachTip]);
+  }, [stream, skipCamera, fetchCoachTip, type, mode, sessionContext, showContextModal]);
 
   // End session
   const endSession = useCallback(async () => {
@@ -277,6 +344,7 @@ function PracticeContent() {
       id: sessionIdRef.current,
       mode,
       type,
+      context: sessionContext,
       startTime: startTime || Date.now(),
       endTime: Date.now(),
       duration: elapsedTime,
@@ -291,13 +359,97 @@ function PracticeContent() {
 
     // Navigate to report page
     router.push(`/report?id=${sessionIdRef.current}`);
-  }, [transcript, mode, type, startTime, elapsedTime, score, metrics, router]);
+  }, [transcript, mode, type, sessionContext, startTime, elapsedTime, score, metrics, router]);
 
   // Format time display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle starting session after context is provided
+  const handleContextSubmit = () => {
+    setShowContextModal(false);
+    // Reset pitch mode state
+    setPitchMode(null);
+    setRandomProduct(null);
+    setRandomCategory('');
+    
+    // Now actually start the session
+    if (mode === 'interview' && type === 'programming') setShowCodingSection(true);
+
+    setIsActive(true);
+    setStartTime(Date.now());
+    setTranscript([]);
+    setMetrics(getInitialMetrics());
+    setScore(50);
+    setCoachTip(null);
+    sessionIdRef.current = generateSessionId();
+
+    // Initialize Tone Analyzer
+    if (stream) {
+      toneAnalyzerRef.current = createToneAnalyzer();
+      toneAnalyzerRef.current.initialize(stream).then(() => {
+        console.log('🎵 Tone analyzer initialized');
+        toneAnalyzerRef.current?.start({
+          onToneUpdate: (tone) => {
+            currentToneRef.current = tone;
+            console.log('🎵 Tone update:', tone);
+          },
+        });
+      });
+    }
+
+    // Initialize Wispr
+    wisprRef.current = createWisprFlow();
+    wisprRef.current.start({
+      onTranscript: (segment) => {
+        const segmentWithTone = {
+          ...segment,
+          tone: { ...currentToneRef.current },
+        };
+        
+        setTranscript((prev) => {
+          if (segmentWithTone.isFinal) {
+            const filtered = prev.filter((s) => s.isFinal);
+            return [...filtered, segmentWithTone];
+          }
+          const finals = prev.filter((s) => s.isFinal);
+          return [...finals, segmentWithTone];
+        });
+      },
+      onMetricsUpdate: (speechMetrics) => {
+        setMetrics((prev) => ({
+          ...prev,
+          pace_wpm: speechMetrics.pace_wpm,
+          filler_rate_per_min: speechMetrics.filler_rate_per_min,
+          pause_count: speechMetrics.pause_count,
+          max_pause_ms: speechMetrics.max_pause_ms,
+        }));
+      },
+    });
+
+    // Initialize OverShoot
+    overshootRef.current = createOverShootAnalyzer();
+    const video = document.querySelector('video');
+    if (video) {
+      overshootRef.current.initialize(video as HTMLVideoElement).then(() => {
+        overshootRef.current?.start({
+          onSignals: (signals) => {
+            setMetrics((prev) => ({
+              ...prev,
+              eye_contact_pct: signals.eye_contact_pct,
+              motion_energy: signals.motion_energy,
+            }));
+          },
+        });
+      });
+    }
+
+    // Start periodic coaching tips
+    coachTimerRef.current = setInterval(fetchCoachTip, 5000);
+    setTimeout(fetchCoachTip, 3000);
   };
 
   const activeCues = getActiveCues(metrics);
@@ -325,6 +477,238 @@ function PracticeContent() {
 
   return (
     <main className="min-h-screen flex flex-col">
+      {/* Context Modal for Presentations */}
+      {showContextModal && type !== 'pitch' && (() => {
+        const modalContent = getContextModalContent();
+        return (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 rounded-2xl border border-gray-700 p-8 max-w-lg w-full">
+              <h2 className="text-2xl font-bold mb-2">{modalContent.title}</h2>
+              <p className="text-gray-400 mb-6">
+                {modalContent.description}
+              </p>
+              
+              <textarea
+                value={sessionContext}
+                onChange={(e) => setSessionContext(e.target.value)}
+                placeholder={modalContent.placeholder}
+                className="w-full h-32 bg-gray-800 border border-gray-600 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 transition-colors"
+                autoFocus
+              />
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowContextModal(false);
+                    setSessionContext('');
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleContextSubmit}
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                >
+                  {sessionContext.trim() ? 'Start Session' : 'Skip & Start'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Pitch Modal - Special two-option modal for sales pitch */}
+      {showContextModal && type === 'pitch' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl border border-gray-700 p-8 max-w-lg w-full">
+            {/* Mode Selection */}
+            {!pitchMode && (
+              <>
+                <h2 className="text-2xl font-bold mb-2">Choose your pitch challenge</h2>
+                <p className="text-gray-400 mb-6">
+                  Practice pitching your own product, or challenge yourself with a random one!
+                </p>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setPitchMode('own')}
+                    className="w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all text-left"
+                  >
+                    <h3 className="font-semibold text-white mb-1">🎯 Pitch Your Product</h3>
+                    <p className="text-gray-400 text-sm">Describe what you&apos;re selling for tailored coaching</p>
+                  </button>
+                  
+                  <button
+                    onClick={() => setPitchMode('random')}
+                    className="w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-purple-500 hover:bg-purple-500/10 transition-all text-left"
+                  >
+                    <h3 className="font-semibold text-white mb-1">🎲 Random Product Challenge</h3>
+                    <p className="text-gray-400 text-sm">Get a random product to pitch on the spot</p>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowContextModal(false);
+                    setPitchMode(null);
+                  }}
+                  className="w-full mt-4 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+
+            {/* Own Product Mode */}
+            {pitchMode === 'own' && (
+              <>
+                <button
+                  onClick={() => setPitchMode(null)}
+                  className="text-gray-400 hover:text-white mb-4 text-sm flex items-center gap-1"
+                >
+                  ← Back
+                </button>
+                <h2 className="text-2xl font-bold mb-2">What are you selling?</h2>
+                <p className="text-gray-400 mb-6">
+                  Describe your product or service for more relevant coaching.
+                </p>
+                
+                <textarea
+                  value={sessionContext}
+                  onChange={(e) => setSessionContext(e.target.value)}
+                  placeholder="e.g., A SaaS platform for small business accounting, a new energy drink targeting athletes, a luxury smartwatch with health monitoring..."
+                  className="w-full h-32 bg-gray-800 border border-gray-600 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 transition-colors"
+                  autoFocus
+                />
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowContextModal(false);
+                      setSessionContext('');
+                      setPitchMode(null);
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleContextSubmit}
+                    className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                  >
+                    {sessionContext.trim() ? 'Start Session' : 'Skip & Start'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Random Product Mode */}
+            {pitchMode === 'random' && !randomProduct && (
+              <>
+                <button
+                  onClick={() => setPitchMode(null)}
+                  className="text-gray-400 hover:text-white mb-4 text-sm flex items-center gap-1"
+                >
+                  ← Back
+                </button>
+                <h2 className="text-2xl font-bold mb-2">Random Product Challenge</h2>
+                <p className="text-gray-400 mb-6">
+                  Get a completely random product, or specify a category for your challenge.
+                </p>
+                
+                <input
+                  type="text"
+                  value={randomCategory}
+                  onChange={(e) => setRandomCategory(e.target.value)}
+                  placeholder="Category (optional): car, tech, food, fitness, luxury..."
+                  className="w-full bg-gray-800 border border-gray-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors mb-4"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowContextModal(false);
+                      setPitchMode(null);
+                      setRandomCategory('');
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => fetchRandomProduct(randomCategory)}
+                    disabled={loadingProduct}
+                    className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
+                  >
+                    {loadingProduct ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Generating...
+                      </span>
+                    ) : (
+                      '🎲 Generate Product'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Random Product Result */}
+            {pitchMode === 'random' && randomProduct && (
+              <>
+                <button
+                  onClick={() => {
+                    setRandomProduct(null);
+                    setSessionContext('');
+                  }}
+                  className="text-gray-400 hover:text-white mb-4 text-sm flex items-center gap-1"
+                >
+                  ← Try Another
+                </button>
+                <h2 className="text-2xl font-bold mb-2">Your Challenge</h2>
+                <p className="text-gray-400 mb-4">
+                  Pitch this product as convincingly as you can!
+                </p>
+                
+                <div className="bg-gray-800 rounded-xl p-5 border border-gray-600 mb-6">
+                  <h3 className="text-xl font-bold text-white mb-2">{randomProduct.product}</h3>
+                  <p className="text-gray-300 mb-3">{randomProduct.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {randomProduct.key_features.map((feature, i) => (
+                      <span key={i} className="px-3 py-1 bg-gray-700 rounded-full text-sm text-gray-300">
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowContextModal(false);
+                      setPitchMode(null);
+                      setRandomProduct(null);
+                      setRandomCategory('');
+                      setSessionContext('');
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleContextSubmit}
+                    className="flex-1 px-4 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                  >
+                    Start Pitching!
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <Navbar>
         {isActive && (
