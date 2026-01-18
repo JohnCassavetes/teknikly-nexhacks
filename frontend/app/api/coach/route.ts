@@ -1,10 +1,19 @@
 // POST /api/coach - Get live coaching tip from OpenRouter
 import { NextRequest, NextResponse } from 'next/server';
+import { InterviewQuestion } from '@/lib/types';
+
+interface InterviewSetupContext {
+  source: 'resume' | 'job_description' | 'surprise_me';
+  resume?: string;
+  jobDescription?: string;
+  selectedQuestion: InterviewQuestion;
+}
 
 interface CoachRequest {
   mode: 'interview' | 'presentation';
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   context?: string; // User-provided context about what they're preparing for
+  interviewSetup?: InterviewSetupContext; // Interview-specific context
   recent_transcript: string;
   metrics: {
     pace_wpm: number;
@@ -62,7 +71,7 @@ Emphasize logical flow, confident delivery, and structured thinking.
 Help them articulate their thought process clearly.`,
 };
 
-function getSystemPrompt(type?: string, context?: string): string {
+function getSystemPrompt(type?: string, context?: string, interviewSetup?: InterviewSetupContext): string {
   let prompt = BASE_SYSTEM_PROMPT;
   
   if (type && TYPE_PROMPTS[type]) {
@@ -71,8 +80,24 @@ function getSystemPrompt(type?: string, context?: string): string {
 ${BASE_SYSTEM_PROMPT}`;
   }
   
+  // Add interview-specific context
+  if (interviewSetup) {
+    prompt += `\n\nINTERVIEW CONTEXT:
+Question being answered: "${interviewSetup.selectedQuestion.question}"`;
+    
+    if (interviewSetup.resume) {
+      prompt += `\n\nThe candidate has a resume with the following highlights. If they're missing key points from their background, encourage them to mention relevant experience:
+${interviewSetup.resume.substring(0, 1000)}${interviewSetup.resume.length > 1000 ? '...' : ''}`;
+    }
+    
+    if (interviewSetup.jobDescription) {
+      prompt += `\n\nThey are preparing for a job with this description (tailor tips to what the role requires):
+${interviewSetup.jobDescription.substring(0, 500)}${interviewSetup.jobDescription.length > 500 ? '...' : ''}`;
+    }
+  }
+  
   // Add user-provided context if available
-  if (context) {
+  if (context && !interviewSetup) {
     prompt = `${prompt}
 
 IMPORTANT CONTEXT: The user is specifically preparing for: "${context}"
@@ -85,7 +110,7 @@ Tailor your coaching tips to be relevant to this specific context.`;
 export async function POST(request: NextRequest) {
   try {
     const body: CoachRequest = await request.json();
-    const { mode, type, context, recent_transcript, metrics } = body;
+    const { mode, type, context, interviewSetup, recent_transcript, metrics } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -102,6 +127,10 @@ export async function POST(request: NextRequest) {
     if (context) {
       userPrompt += `\nContext: ${context}`;
     }
+
+    if (interviewSetup) {
+      userPrompt += `\nQuestion: ${interviewSetup.selectedQuestion.question}`;
+    }
     
     userPrompt += `
 Recent transcript: "${recent_transcript.slice(-500)}"
@@ -115,7 +144,7 @@ Metrics:
 
 Give one coaching tip.`;
 
-    const systemPrompt = getSystemPrompt(type, context);
+    const systemPrompt = getSystemPrompt(type, context, interviewSetup);
 
     // Log the prompts being sent to the AI
     console.log('=== COACH API (Live Tips) - Prompt Details ===');

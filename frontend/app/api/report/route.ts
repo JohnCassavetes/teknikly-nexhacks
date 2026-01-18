@@ -1,11 +1,12 @@
 // POST /api/report - Generate post-session report from OpenRouter
 import { NextRequest, NextResponse } from 'next/server';
-import { TranscriptSegment, CodingSessionData, CodeSnapshot } from '@/lib/types';
+import { TranscriptSegment, CodingSessionData, CodeSnapshot, InterviewSetupData } from '@/lib/types';
 
 interface ReportRequest {
   mode: 'interview' | 'presentation';
   type?: string; // Sub-category like 'comedy', 'pitch', 'technical', etc.
   context?: string; // User-provided context about what they're preparing for
+  interviewSetup?: InterviewSetupData; // Interview-specific setup data
   duration_seconds: number;
   transcript: string;
   enrichedTranscript?: TranscriptSegment[]; // Full transcript with paralinguistic annotations
@@ -261,7 +262,7 @@ Emphasize how well they articulated their thought process.
 Frame feedback in terms of interview success - "logical clarity", "structured responses", "technical communication".`,
 };
 
-function getSystemPrompt(type?: string, context?: string): string {
+function getSystemPrompt(type?: string, context?: string, interviewSetup?: InterviewSetupData): string {
   let prompt = BASE_SYSTEM_PROMPT;
   
   if (type && TYPE_PROMPTS[type]) {
@@ -270,8 +271,31 @@ function getSystemPrompt(type?: string, context?: string): string {
 ${BASE_SYSTEM_PROMPT}`;
   }
   
+  // Add interview-specific context for personalized feedback
+  if (interviewSetup) {
+    prompt += `\n\nINTERVIEW SESSION CONTEXT:
+The candidate was answering this question: "${interviewSetup.selectedQuestion.question}"`;
+    
+    if (interviewSetup.resume) {
+      prompt += `\n\nCANDIDATE RESUME (use this to evaluate if they mentioned relevant experience):
+${interviewSetup.resume.substring(0, 2000)}${interviewSetup.resume.length > 2000 ? '...' : ''}
+
+IMPORTANT: In your feedback, mention if there were key points from their resume they should have highlighted in their answer. For example:
+- "You could have mentioned your experience with [X] from your resume"
+- "Great job highlighting your [Y] project, which was a strong choice"
+- "Consider referencing your [Z] experience next time"`;
+    }
+    
+    if (interviewSetup.jobDescription) {
+      prompt += `\n\nJOB DESCRIPTION (evaluate if their answer aligns with job requirements):
+${interviewSetup.jobDescription.substring(0, 1000)}${interviewSetup.jobDescription.length > 1000 ? '...' : ''}
+
+Evaluate how well their response addresses what this specific role is looking for.`;
+    }
+  }
+  
   // Add user-provided context if available
-  if (context) {
+  if (context && !interviewSetup) {
     prompt = `${prompt}
 
 IMPORTANT CONTEXT: The user was specifically preparing for: "${context}"
@@ -284,7 +308,7 @@ Tailor your feedback to be relevant to this specific context. Evaluate how well 
 export async function POST(request: NextRequest) {
   try {
     const body: ReportRequest = await request.json();
-    const { mode, type, context, duration_seconds, transcript, enrichedTranscript, codingData, metrics, final_score } = body;
+    const { mode, type, context, interviewSetup, duration_seconds, transcript, enrichedTranscript, codingData, metrics, final_score } = body;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -314,6 +338,10 @@ export async function POST(request: NextRequest) {
     
     if (context) {
       userPrompt += `\nContext: The user was preparing for: ${context}`;
+    }
+
+    if (interviewSetup) {
+      userPrompt += `\nQuestion answered: "${interviewSetup.selectedQuestion.question}"`;
     }
     
     userPrompt += `
@@ -354,7 +382,7 @@ Annotated Transcript (with delivery markers):
 
 ${codingData ? 'Focus on how well they communicated their coding thought process, NOT on fixing their implementation.' : 'Provide a detailed feedback report that addresses both WHAT was said and HOW it was delivered.'}`;
 
-    const systemPrompt = getSystemPrompt(type, context);
+    const systemPrompt = getSystemPrompt(type, context, interviewSetup);
 
     // Log the prompts being sent to the AI
     console.log('=== REPORT API - Prompt Details ===');
