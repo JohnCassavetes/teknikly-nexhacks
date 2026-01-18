@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, notFound } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { presentationTypes, interviewTypes } from '@/app/page';
 import { Mode } from '@/lib/types';
+
+// Valid modes for static generation
+const validModes = ['presentation', 'interview'] as const;
 
 // Page for selecting presentation or interview types
 export default function ModeTypePage() {
