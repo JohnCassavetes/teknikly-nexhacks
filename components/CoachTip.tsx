@@ -53,7 +53,7 @@ export default function CoachTip({ tip }: CoachTipProps) {
   return (
     <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
       <div className="flex items-start gap-3">
-        <div className="text-2xl">🎯</div>
+        {/* <div className="text-2xl">🎯</div> */}
         <div className="flex-1">
           <div className="text-xs text-blue-400 uppercase tracking-wide mb-1">
             AI Coach Tip
@@ -66,10 +66,16 @@ export default function CoachTip({ tip }: CoachTipProps) {
           className="flex-shrink-0 p-2 rounded-lg bg-blue-500/30 hover:bg-blue-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title={isSpeaking ? 'Speaking...' : 'Speak tip'}
         >
-          {isSpeaking ? (
+          {/* {isSpeaking ? (
             <span className="text-xl animate-pulse">🔊</span>
           ) : (
             <span className="text-xl">🔈</span>
+          )} */}
+
+          {isSpeaking ? (
+            <span className="text-xl animate-pulse">Speaking</span>
+          ) : (
+            <span className="text-xl">Not speaking</span>
           )}
         </button>
       </div>

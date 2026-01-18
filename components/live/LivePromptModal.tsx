@@ -26,7 +26,6 @@ export default function LivePromptModal({ onSubmit }: LivePromptModalProps) {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-gray-900 rounded-2xl border border-gray-700 p-8 max-w-lg w-full animate-in zoom-in-95 duration-300">
                 <div className="text-center mb-6">
-                    <div className="text-5xl mb-4">🎙️</div>
                     <h2 className="text-2xl font-bold text-white mb-2">Start Live Session</h2>
                     <p className="text-gray-400">
                         What would you like to practice today?

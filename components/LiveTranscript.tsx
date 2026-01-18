@@ -39,30 +39,30 @@ function getToneIndicator(tone?: ToneInfo): { emoji: string; className: string; 
   
   // Volume indicators
   if (tone.volume === 'quiet') {
-    indicators.push('🔈');
+    // indicators.push('🔈');
     classes.push('opacity-60');
     tooltips.push('Quiet');
   } else if (tone.volume === 'loud') {
-    indicators.push('🔊');
+    // indicators.push('🔊');
     classes.push('font-semibold');
     tooltips.push('Loud');
   }
   
   // Energy indicators
   if (tone.energy === 'high') {
-    indicators.push('⚡');
+    // indicators.push('⚡');
     tooltips.push('High energy');
   } else if (tone.energy === 'low') {
-    indicators.push('😐');
+    // indicators.push('😐');
     tooltips.push('Low energy');
   }
   
   // Pitch trend indicators
   if (tone.pitchTrend === 'rising') {
-    indicators.push('↗️');
+    // indicators.push('↗️');
     tooltips.push('Rising pitch (question?)');
   } else if (tone.pitchTrend === 'falling') {
-    indicators.push('↘️');
+    // indicators.push('↘️');
     tooltips.push('Falling pitch (statement)');
   }
   
@@ -146,7 +146,7 @@ export default function LiveTranscript({
           className="text-blue-400 text-xs mx-1"
           title={`${Math.round(segment.pauseBefore / 1000)}s pause`}
         >
-          ⏸️ {formatPause(segment.pauseBefore)}
+          Pause{formatPause(segment.pauseBefore)}
         </span>
       );
     }
@@ -230,15 +230,12 @@ export default function LiveTranscript({
               <span className="text-gray-500">fillers</span>
             </span>
             <span className="flex items-center gap-1">
-              <span className="text-blue-400">⏸️</span>
               <span className="text-gray-500">pauses</span>
             </span>
             <span className="flex items-center gap-1">
-              <span>🔊🔈</span>
               <span className="text-gray-500">volume</span>
             </span>
             <span className="flex items-center gap-1">
-              <span>↗️↘️</span>
               <span className="text-gray-500">pitch</span>
             </span>
           </div>

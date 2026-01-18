@@ -16,7 +16,7 @@ export default function VoiceToggle({ enabled, onToggle, isSpeaking }: VoiceTogg
                 }`}
         >
             <span className={`text-xl ${isSpeaking ? 'animate-pulse' : ''}`}>
-                {enabled ? '🔊' : '🔇'}
+                {enabled ? 'On' : 'Off'}
             </span>
             <span className="text-sm font-medium">
                 Voice {enabled ? 'On' : 'Off'}

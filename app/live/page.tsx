@@ -125,7 +125,7 @@ export default function LivePage() {
             // Initialize Tone Analyzer
             toneAnalyzerRef.current = createToneAnalyzer();
             toneAnalyzerRef.current.initialize(stream).then(() => {
-                console.log('🎵 Tone analyzer initialized');
+                console.log('Tone analyzer initialized');
                 toneAnalyzerRef.current?.start({
                     onToneUpdate: (tone) => {
                         currentToneRef.current = tone;
@@ -372,10 +372,10 @@ export default function LivePage() {
 
                             <div className="z-10 text-center">
                                 <div className="text-3xl mb-1">
-                                    {status === 'processing' && '🤔'}
-                                    {status === 'ai_speaking' && '🗣️'}
-                                    {status === 'listening' && '👂'}
-                                    {status === 'prompt' && '🎙️'}
+                                    {status === 'processing'}
+                                    {status === 'ai_speaking'}
+                                    {status === 'listening'}
+                                    {status === 'prompt'}
                                 </div>
                                 <p className="text-sm font-medium text-gray-300">
                                     {status === 'processing' && 'Thinking...'}
@@ -412,7 +412,7 @@ export default function LivePage() {
                                 }}
                                 className="w-full py-3 rounded-xl bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 transition-all font-medium"
                             >
-                                ✋ I'm done, next question
+                                I'm done, next question
                             </button>
                         )}
 
