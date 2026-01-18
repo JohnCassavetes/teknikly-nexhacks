@@ -44,6 +44,8 @@ These questions should:
 - Be relevant to the candidate's background or the job requirements
 - Require verbal explanation and discussion, not coding
 - Cover a range of difficulty levels
+- If a resume is provided, tailor some questions to the candidate's experience
+- If a job description is provided, focus on key skills and technologies mentioned
 
 Respond with JSON only:
 {
@@ -147,7 +149,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'TalkCoach',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-4o-mini',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
