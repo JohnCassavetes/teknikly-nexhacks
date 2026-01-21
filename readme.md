@@ -1,11 +1,11 @@
 Perfect — here’s a **clean, explicit, Claude-friendly README.md** that **locks in the stack**:
 
-* ✅ LiveKit
-* ✅ OverShoot
-* ✅ Wispr Flow
-* ✅ ElevenLabs
-* ✅ **OpenRouter (instead of OpenAI / Gemini keys)**
-* ✅ Built to ship on **Vercel in <24h**
+* LiveKit
+* OverShoot
+* Wispr Flow
+* ElevenLabs
+* **OpenRouter (instead of OpenAI / Gemini keys)**
+* Built to ship on **Vercel in <24h**
 
 This is written so Claude can **implement without guessing**.
 
@@ -17,8 +17,6 @@ This is written so Claude can **implement without guessing**.
 **EasySpeech** is a real-time communication coach for public speaking and interpersonal scenarios (interviews, presentations, stand-up).
 
 It analyzes **speech + body language in real time**, gives **live coaching cues and scoring**, and produces a **post-session improvement report**.
-
-This README is optimized so an LLM (Claude) can build the project end-to-end.
 
 ---
 
@@ -140,40 +138,6 @@ LiveKit
 ├── /api/coach  → OpenRouter (live tip)
 ├── /api/report → OpenRouter (final report)
 └── /api/tts    → ElevenLabs (optional)
-
-```
-
----
-
-## Repository Structure
-
-```
-
-/app
-/page.tsx              # landing (mode select)
-/practice/page.tsx     # live practice room
-/report/page.tsx       # post-session report
-/history/page.tsx      # local session history
-
-/api
-/coach/route.ts        # OpenRouter live tip
-/report/route.ts       # OpenRouter report
-/tts/route.ts          # ElevenLabs TTS
-
-/lib
-livekit.ts             # LiveKit helpers
-overshoot.ts           # OverShoot wrapper
-wispr.ts               # Wispr Flow wrapper
-scoring.ts             # metrics + score logic
-storage.ts             # localStorage helpers
-
-/components
-VideoPanel.tsx
-LiveTranscript.tsx
-ScoreGauge.tsx
-CueBadges.tsx
-TrendChart.tsx
-ModePicker.tsx
 
 ````
 
@@ -355,13 +319,4 @@ A judge can:
 MIT
 
 ```
-
----
-
-If you want, I can next:
-- Write the **exact OpenRouter prompts** (coach + report)
-- Write the **scoring.ts** implementation
-- Or give you a **LiveKit + Wispr + OverShoot wiring order** so you don’t deadlock on setup
-
-Just tell me which one.
 ```
