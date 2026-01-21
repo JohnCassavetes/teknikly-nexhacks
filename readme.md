@@ -1,4 +1,3 @@
-Perfect — here’s a **clean, explicit, Claude-friendly README.md** that **locks in the stack**:
 
 * LiveKit
 * OverShoot
@@ -6,8 +5,6 @@ Perfect — here’s a **clean, explicit, Claude-friendly README.md** that **loc
 * ElevenLabs
 * **OpenRouter (instead of OpenAI / Gemini keys)**
 * Built to ship on **Vercel in <24h**
-
-This is written so Claude can **implement without guessing**.
 
 ---
 
